@@ -22,7 +22,7 @@
  *
  * ── O formato ──────────────────────────────────────────────────────────────
  *
- * `mcp_externo:<leitura|escrita>:<nome>` — prefixo estável que o editor do
+ * `mcp_externo:<leitura|escrita|escrita_do_contato>:<nome>` — prefixo estável que o editor do
  * agente lista, marca explícita e o nome como o servidor o anuncia. O nome
  * segue a mesma régua do protocolo MCP (`[A-Za-z0-9_-]{1,64}`): um id fora
  * dela nunca monta ferramenta, então recusá-lo aqui é recusar cedo o que de
@@ -32,8 +32,16 @@
 /** Prefixo estável: é por ele que o editor e a validação reconhecem a remota. */
 export const PREFIXO_TOOL_ID_MCP_EXTERNO = "mcp_externo:";
 
-/** O que a escolha do agente declara sobre a ferramenta remota. */
-export type MarcaRemota = "leitura" | "escrita";
+/**
+ * O que a escolha do agente declara sobre a ferramenta remota.
+ *
+ * `escrita_do_contato` (ViniCore): ESCRITA que o administrador declara agir só
+ * sobre o cliente da conversa — o servidor remoto amarra o efeito aos
+ * cabeçalhos `X-Deskcomm-*` (o pedido do cliente que está falando, por
+ * exemplo). É a única escrita remota que entra num turno de atendimento, e só
+ * quando o servidor carrega a identidade DESTE contato (`tools.ts`).
+ */
+export type MarcaRemota = "leitura" | "escrita" | "escrita_do_contato";
 
 /** Uma escolha lida de volta de `tool_ids`. */
 export interface EscolhaRemota {
@@ -41,6 +49,8 @@ export interface EscolhaRemota {
   nome: string;
   /** `true` só quando o administrador marcou a ferramenta como leitura. */
   leitura: boolean;
+  /** Presente só quando o administrador marcou `escrita_do_contato`. */
+  escritaDoContato?: true;
 }
 
 const NOME_DE_PROTOCOLO = /^[A-Za-z0-9_-]{1,64}$/;
@@ -68,8 +78,10 @@ export function lerToolIdRemoto(id: string): EscolhaRemota | null {
   const [marca, nome, ...sobra] = resto.split(":");
   if (sobra.length > 0) return null;
   if (!ehNomeDeProtocolo(nome)) return null;
-  if (marca !== "leitura" && marca !== "escrita") return null;
-  return { nome: nome!, leitura: marca === "leitura" };
+  if (marca !== "leitura" && marca !== "escrita" && marca !== "escrita_do_contato") return null;
+  return marca === "escrita_do_contato"
+    ? { nome: nome!, leitura: false, escritaDoContato: true }
+    : { nome: nome!, leitura: marca === "leitura" };
 }
 
 /** É um id de ferramenta remota bem formado? (`false` para ids compilados.) */

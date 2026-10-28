@@ -269,7 +269,10 @@ function wrapMcpTool(
         // `write` E `handoff`: a passagem também age sobre uma conversa. A regra
         // e o mapa campo → dono moram em `escopo-das-escritas.ts`; o `lead_id`
         // segue com a guarda logo abaixo. Sem contato do turno, nada muda.
-        if (input.contatoDoTurno && def.category !== "read") {
+        // A escrita remota `escrita_do_contato` só chega montada aqui com o
+        // servidor amarrado a ESTE contato (bloco das remotas, no fim de
+        // `pickToolsFromMcp`): quem a escopa é o servidor, pelos cabeçalhos.
+        if (input.contatoDoTurno && def.category !== "read" && !def.escritaDoContatoPeloServidor) {
           const escopo = await escritaCabeNoTurno(
             input.supabase,
             input.ctx.organizationId,
@@ -350,7 +353,8 @@ function wrapMcpTool(
           ferramenta: def.name,
           argumentos: argsRecord,
           escopo: input.pipelineIds,
-          ehEscrita: def.category === "write",
+          // A escrita remota do contato não toca negócio do CRM: funil não se aplica.
+          ehEscrita: def.category === "write" && !def.escritaDoContatoPeloServidor,
           resolvePipelineDoLead: async (leadId) => {
             const { data, error } = await input.supabase
               .from("crm_leads")
@@ -678,6 +682,10 @@ export function pickToolsFromMcp(input: PickToolsInput): Record<string, Tool> {
         // para ser RECUSADA logo acima por `escrita_sem_escopo_do_turno`,
         // nunca executada — com ou sem identidade.
         if (input.contatoDoTurno && def.category === "read" && !identificado) continue;
+        // `escrita_do_contato`: sem a identidade DESTE contato amarrada ao
+        // servidor ela nem monta — o servidor não saberia de quem é o pedido.
+        // Sem contato no turno (ensaio, rota HTTP) ela segue como escrita comum.
+        if (input.contatoDoTurno && def.escritaDoContatoPeloServidor && !identificado) continue;
         result[def.name] = wrapMcpTool(def, entradaDaRemota, executarEscrita);
       }
     }

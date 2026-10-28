@@ -79,6 +79,18 @@ export interface McpToolDefinition<TInput extends z.ZodRawShape = z.ZodRawShape>
    */
   redigirParaAuditoria?: (args: Record<string, unknown>) => Record<string, unknown>;
   /**
+   * Escrita REMOTA marcada `escrita_do_contato` (ViniCore, `servidor-externo/ids.ts`).
+   *
+   * Quem confere de quem é o registro é o servidor remoto, pelos cabeçalhos
+   * `X-Deskcomm-*` que o executor monta do banco — não a tabela
+   * `ESCOPO_DAS_ESCRITAS`, que só conhece registro do CRM. Por isso a ponte
+   * (`lib/ai/runtime/tools.ts`) só monta esta escrita num turno com contato
+   * quando o servidor carrega a identidade DESTE contato, e aí a deixa passar
+   * pela conferência de escopo e pelo escopo de funil (ela não toca negócio).
+   * Só `definirFerramentasRemotas` preenche: nenhuma tool compilada tem isto.
+   */
+  escritaDoContatoPeloServidor?: true;
+  /**
    * O que a tool DECLARA quando a resposta é um vazio que NÃO é sucesso.
    *
    * Uma busca que não acha nada TERMINOU bem: não houve erro, houve ausência —

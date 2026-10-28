@@ -81,6 +81,14 @@ describe("o id da ferramenta remota (item 6)", () => {
       nome: "erp_achar",
       leitura: false,
     });
+    expect(toolIdRemoto("criar_pedido", "escrita_do_contato")).toBe(
+      "mcp_externo:escrita_do_contato:criar_pedido",
+    );
+    expect(lerToolIdRemoto("mcp_externo:escrita_do_contato:criar_pedido")).toEqual({
+      nome: "criar_pedido",
+      leitura: false,
+      escritaDoContato: true,
+    });
   });
 
   it("id compilado NÃO é lido como remota (o `null` do prefixo ausente)", () => {
@@ -194,9 +202,13 @@ describe("o editor do agente lista o que o servidor remoto oferece", () => {
     expect(consultar!.ids).toEqual([
       "mcp_externo:leitura:erp_consultar",
       "mcp_externo:escrita:erp_consultar",
+      "mcp_externo:escrita_do_contato:erp_consultar",
     ]);
     expect(consultar!.declaradaLeitura).toBe(true);
-    expect(cancelar!.ids).toEqual(["mcp_externo:escrita:erp_cancelar"]);
+    expect(cancelar!.ids).toEqual([
+      "mcp_externo:escrita:erp_cancelar",
+      "mcp_externo:escrita_do_contato:erp_cancelar",
+    ]);
     expect(cancelar!.declaradaLeitura).toBe(false);
 
     // O que a listagem devolve é exatamente o que a validação do agente aceita.

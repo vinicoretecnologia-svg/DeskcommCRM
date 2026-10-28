@@ -95,7 +95,11 @@ export async function listarFerramentasMcpExternas(): Promise<ResultadoDaListage
     // declarou só admite a marca `escrita`. O inverso (recusar a marca `escrita`
     // de quem declarou leitura) seria tirar do administrador o direito de não
     // confiar na declaração de um sistema alheio.
-    const marcas: MarcaRemota[] = declarada ? ["leitura", "escrita"] : ["escrita"];
+    // `escrita_do_contato` vale para qualquer uma: é declaração do administrador
+    // de que o servidor amarra o efeito ao cliente da conversa (`ids.ts`).
+    const marcas: MarcaRemota[] = declarada
+      ? ["leitura", "escrita", "escrita_do_contato"]
+      : ["escrita", "escrita_do_contato"];
     return {
       nome: ferramenta.name,
       descricao: ferramenta.description ?? null,
