@@ -179,7 +179,7 @@ services:
       # de mensagem dos dois eventos em 22.815 mensagens reais, os que chegaram
       # SÓ por `message` foram ZERO, e 1.642 chegaram só por `message.any` (os
       # que saíram de nós, que `message` não cobre). Superconjunto estrito.
-      WHATSAPP_HOOK_EVENTS: "message.any,message.ack,message.edited,message.revoked,session.status,state.change"
+      WHATSAPP_HOOK_EVENTS: "message.any,message.ack,message.edited,message.revoked,session.status,state.change,call.received"
       # Nome EXATO da doc do WAHA (events#hmac-authentication): WHATSAPP_HOOK_HMAC
       # não existe nele — sem o _KEY ele ignora e nunca assina.
       WHATSAPP_HOOK_HMAC_KEY: ${WAHA_HMAC_SECRET}
