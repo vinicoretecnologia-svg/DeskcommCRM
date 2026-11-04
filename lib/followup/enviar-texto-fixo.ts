@@ -8,8 +8,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import { ApiError } from "@/lib/api/types";
-import { decidirElegibilidadeDaConversaViaSupabase } from "@/lib/ai/elegibilidade/consulta-supabase";
-import { ttlDaAutorizacaoMs } from "@/lib/ai/elegibilidade/gate";
 import { createSupabaseAdminClient, type FollowupJobRequest } from "@/lib/followup/engine";
 import { decidirAdiamentoPorJanela } from "@/lib/followup/janela-de-disparo";
 import type { EnrollmentRow } from "@/lib/followup/node-handlers";
@@ -119,27 +117,8 @@ export async function enviarTextoFixoPendente(
       const boundary = parseServiceBoundary((job.payload as Record<string, unknown>).service_boundary);
       await assertServiceBoundarySupabase(admin, boundary);
       const conversationId = boundary!.conversation_id;
-      // GATE DE ELEGIBILIDADE — este envio inline BYPASSA `executarTurnoDoAgente`
-      // (é o atalho "sem cron e sem agent-worker"), então precisa da checagem
-      // por conta própria. Mesma regra pura do drain/turno. Canal 'open' → passa.
-      // Bloqueio definitivo → o follow-up NÃO sai e o job vira `done`. Erro de
-      // leitura → job volta pra `pending` (pode ser transitório) — fail-closed:
-      // não envia sem confirmar.
-      const elegib = await decidirElegibilidadeDaConversaViaSupabase(admin, {
-        organizationId: job.organization_id as string,
-        conversationId,
-        agora: new Date(),
-        ttlMs: ttlDaAutorizacaoMs(process.env),
-      });
-      if (elegib !== null && !elegib.permite) {
-        logger.info("[followup] texto fixo não enviado — conversa não elegível para IA", {
-          organization_id: job.organization_id,
-          conversation_id: conversationId,
-          motivo: elegib.motivo,
-        });
-        await settle(job.organization_id,job.id,jobClaim.acquired_at,true);
-        continue;
-      }
+      // Fixed flow text is deterministic and does not use AI.
+      // Keep the channel safety gates below, without the AI test allowlist.
 
       // #2658 — AS DUAS RÉGUAS DE HORÁRIO, TAMBÉM AQUI.
       //

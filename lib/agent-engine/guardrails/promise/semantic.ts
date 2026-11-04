@@ -147,6 +147,11 @@ const INSTRUCAO_COM_EVIDENCIAS =
   "'São três sessões gratuitas' ou 'Sua vaga amanhã está garantida, sem cadastro' → true. " +
   "A descrição dos horários existentes não confirma vaga para uma pessoa. Benefício geral " +
   "documentado não é garantia individual de segurança ou resultado.\n" +
+  "Evidência de origem 'agenda' é um compromisso que o SISTEMA gravou neste turno: ela " +
+  "comprova confirmar ao cliente aquele dia e hora (e o fim, se houver). Com " +
+  "aguarda_confirmacao=true, comprova só que o horário foi RESERVADO — dizer confirmado ou " +
+  "garantido continua true. Com status=cancelled, comprova dizer que aquele compromisso foi " +
+  "cancelado/desmarcado. Ela não autoriza outro horário, preço, brinde ou condição.\n" +
   "Conserve a correspondência produto/plano, valores, duração, requisitos e limites. " +
   "Uma oferta autorizada não libera outra promessa: 'demonstração gratuita e plano pago " +
   "grátis para sempre' → true se o plano grátis não estiver autorizado. Paráfrase fiel é " +

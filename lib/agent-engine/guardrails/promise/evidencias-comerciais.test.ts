@@ -132,6 +132,87 @@ describe("evidências comerciais do turno", () => {
     expect(JSON.stringify(pacote).length).toBeLessThanOrEqual(16_000);
   });
 
+  it("o compromisso gravado no turno prova a confirmação, com o status que o banco devolveu", () => {
+    const e = criarEvidenciasComerciaisDoTurno([]);
+    const compromisso = {
+      id: "ag-1",
+      status: "confirmed",
+      starts_at: "2026-10-23T20:00:00.000Z",
+      quando: "sexta, 23/10/2026, 17:00",
+      fim_quando: "sexta, 23/10/2026, 17:30",
+    };
+    e.registrarAgendamento({ marcado: true, compromisso, inicio: compromisso.starts_at });
+    e.registrarAgendamento({
+      remarcado: true,
+      compromisso: { ...compromisso, id: "ag-2", status: "pending" },
+    });
+    // Mais recente primeiro, como as demais origens.
+    expect(e.ler()).toEqual([
+      {
+        origem: "agenda",
+        referencia: "ag-2",
+        titulo: "Compromisso remarcado neste turno",
+        conteudo: JSON.stringify({
+          quando: compromisso.quando,
+          fim_quando: compromisso.fim_quando,
+          status: "pending",
+          aguarda_confirmacao: true,
+        }),
+      },
+      {
+        origem: "agenda",
+        referencia: "ag-1",
+        titulo: "Compromisso gravado neste turno",
+        conteudo: JSON.stringify({
+          quando: compromisso.quando,
+          fim_quando: compromisso.fim_quando,
+          status: "confirmed",
+          aguarda_confirmacao: false,
+        }),
+      },
+    ]);
+  });
+
+  it("o compromisso desmarcado no turno prova dizer que foi cancelado", () => {
+    const e = criarEvidenciasComerciaisDoTurno([]);
+    e.registrarAgendamento({
+      cancelado: true,
+      compromisso: { id: "ag-3", status: "cancelled", quando: "terça, 27/10/2026, 17:00" },
+    });
+    // O atalho de "já estava desmarcado" não traz o horário: sem `quando`, não prova nada.
+    e.registrarAgendamento({ cancelado: true, compromisso: { id: "ag-4", status: "cancelled", ja_estava: true } });
+    expect(e.ler()).toEqual([
+      {
+        origem: "agenda",
+        referencia: "ag-3",
+        titulo: "Compromisso desmarcado neste turno",
+        conteudo: JSON.stringify({
+          quando: "terça, 27/10/2026, 17:00",
+          fim_quando: null,
+          status: "cancelled",
+          aguarda_confirmacao: false,
+        }),
+      },
+    ]);
+  });
+
+  it("recusa, erro, consulta de horários e argumento do modelo não provam agendamento", () => {
+    const e = criarEvidenciasComerciaisDoTurno([]);
+    const compromisso = { id: "ag-1", status: "confirmed", quando: "sexta, 23/10/2026, 17:00" };
+    for (const result of [
+      { marcado: false, motivo: "horario_indisponivel", compromisso },
+      { error: "escopo_de_funil:escopo_vazio", marcado: true, compromisso },
+      { ok: false, marcado: true, compromisso },
+      { cancelado: false, motivo: "agenda_ja_cancelado", compromisso },
+      { marcado: true },
+      { marcado: true, compromisso: { quando: compromisso.quando, status: "confirmed" } },
+      { horarios: [{ quando: compromisso.quando }] },
+      { dia: "2026-10-23", horario: "17:00", contact_id: "c-1" },
+    ])
+      e.registrarAgendamento(result);
+    expect(e.ler()).toEqual([]);
+  });
+
   it("substitui repetição e limita o contexto descartando itens inteiros, nunca uma ressalva", () => {
     const e = criarEvidenciasComerciaisDoTurno([]);
     e.registrarCatalogo({ produtos: [produto, produto] });

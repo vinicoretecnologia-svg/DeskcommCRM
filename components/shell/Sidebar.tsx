@@ -105,6 +105,7 @@ export function SidebarContent({
    * rota de `activeOrg`, e os dois lados leem o mesmo objeto por construção.
    */
   const nome = activeOrg?.marca?.nome ?? brand.name;
+  const marcaViniCore = !activeOrg?.marca?.logoUrl && brand.name.startsWith("VChat");
   /**
    * O mesmo desenho para o LOGO — e é este par de linhas que fecha o caminho do
    * `logo_url` gravado até a tela.
@@ -140,7 +141,7 @@ export function SidebarContent({
               // `min-w-0`: item de flex não encolhe abaixo do `min-width: auto`,
               // que é o valor padrão — sem isso, uma arte própria larga empurra o
               // botão de recolher para fora da barra em vez de encolher.
-              "min-w-0 rounded-md",
+              "flex min-w-0 items-center gap-3 rounded-md",
               !logoEscuro && "dark:bg-white dark:px-2 dark:py-1 dark:shadow-sm",
             )}
           >
@@ -166,6 +167,7 @@ export function SidebarContent({
                   // MESMA propriedade no CSS e só um sobrevive — a pegadinha que o
                   // review apontou, e por isso o teto é um único `min()`.
                   "h-7 w-auto max-w-[min(10rem,100%)] object-contain",
+                  marcaViniCore && "h-10",
                   logoEscuro && "dark:hidden",
                 )}
               />
@@ -184,9 +186,10 @@ export function SidebarContent({
               <img
                 src={logoEscuro}
                 alt={nome}
-                className="hidden h-7 w-auto max-w-[min(10rem,100%)] object-contain dark:block"
+                className={cn("hidden h-7 w-auto max-w-[min(10rem,100%)] object-contain dark:block", marcaViniCore && "h-10")}
               />
             ) : null}
+            {marcaViniCore ? <span className="min-w-0 leading-none"><span className="block text-xl font-extrabold tracking-tight text-text">VChat</span><span className="mt-1 block text-[9px] font-semibold tracking-wide text-text-muted">ViniCore Tecnologia</span></span> : null}
           </div>
         ) : marcaDoProduto ? (
           // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):

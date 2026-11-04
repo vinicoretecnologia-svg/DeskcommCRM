@@ -1,122 +1,44 @@
-import { LogotipoDoProduto } from "@/components/branding/MarcaDoProduto";
-import { marcaEhADoProduto } from "@/lib/branding";
+/* eslint-disable @next/next/no-img-element -- runtime brand URLs are supplied by this installation. */
+import Link from "next/link";
 import { marcaDaSaida } from "@/lib/branding/saida";
 import { createClient } from "@/lib/supabase/server";
 import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
 
-/**
- * A casca das telas de acesso — login, cadastro, recuperação, MFA, confirmar acesso.
- *
- * ── Por que o LOGO mora aqui, e não em `login/page.tsx` ───────────────────────
- *
- * São sete telas no grupo `(public)`, e todas são "antes de entrar": quem instala
- * o produto para clientes mostra a marca dele exatamente aí. Um `<img>` por
- * página seriam sete cópias que divergem na primeira vez que alguém mexer numa
- * só — e a que ficaria para trás é sempre a que ninguém abre (recuperação de
- * senha, cadastro de MFA), que é justamente onde o cliente do revendedor
- * aparece sozinho e sem contexto.
- *
- * ── Por que `marcaDaSaida(null)` ──────────────────────────────────────────────
- *
- * Aqui não existe organização resolvida: `null` é a declaração disso, e a pilha
- * resultante é a mesma do layout raiz (banco acima, `.env` embaixo). Montar a
- * pilha à mão nesta tela faria a fachada anunciar uma precedência que o resto do
- * produto não usa. E `marcaDaSaida` NUNCA lança (ver o cabeçalho dela): uma cor
- * ou um logo mal gravados não podem derrubar a única tela por onde se entra para
- * corrigi-los.
- *
- * Sem logo configurado E com o nome padrão, a fachada mostra o logotipo do
- * PRODUTO (`components/branding/MarcaDoProduto.tsx`) — inline, sem `<img>`,
- * para que `tests/e2e/marca-logo.spec.ts` continue medindo "a fachada está sem
- * `<img>`" como "sem logo do revendedor".
- *
- * O conteúdo de cada página resolve o próprio nome. A tela de login usa
- * `marcaDaSaida(null)`, como o título da aba, para que a marca alterada pela
- * instalação apareça também sob o botão "Entrar"; a casca usa a mesma resolução
- * para logo e tema.
- *
- * Com o login e a aba na MESMA pilha, `tests/e2e/icone-da-marca.spec.ts` deixou
- * de cruzar duas resoluções independentes: ele só prova que as duas concordam.
- * O que ancora o nome numa verdade de fora da pilha é o caso "o nome trocado em
- * /admin/marca…" de `tests/e2e/marca-logo.spec.ts`, que digita o nome na tela e
- * o confere no login de quem não entrou. Não apague um sem o outro.
- */
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const marca = await marcaDaSaida(null);
-  // A maioria destas telas roda ANTES do login (não há usuário nenhum), mas
-  // duas — `/login/mfa` e, em parte, `/login/recovery` — rodam com uma sessão
-  // parcial já criada (primeiro fator verificado, segundo pendente). Onde há
-  // sessão, o idioma salvo no perfil vale; sem ela, `IdiomaProvider` já cai no
-  // padrão pt-BR sozinho (ver o cabeçalho do provider) — nunca lança.
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   const locale = (user?.user_metadata?.locale as string | undefined) ?? null;
-
   return (
     <IdiomaProvider locale={locale}>
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-sm space-y-6">
-          {marca.logoUrl || marca.logoDarkUrl ? (
-            <div className="flex justify-center">
-              {/*
-                <img> em vez de next/image pelo mesmo motivo da barra lateral: a URL
-                é de quem hospeda e o `next/image` exige allowlist de domínios
-                fechada em BUILD — a imagem pré-buildada do self-host recusaria o
-                domínio do operador. Altura máxima de 80 px e largura máxima de 192 px, sem distorcer
-                arte de proporção desconhecida nem ampliar arquivos pequenos.
-
-                O `alt` é o nome DESTA resolução (`marca.nome`), e não o de
-                `branding()`: é a legenda da imagem que está ali, e nomeá-la com a
-                marca de outra fonte descreveria uma marca que não é a do logo.
-
-                O `data-testid` é lido por `tests/e2e/marca-logo.spec.ts`, que prova
-                que o logo da EMPRESA não vaza para cá. Sem ele a spec caía na
-                "primeira <img> da página", e uma asserção de negação com seletor
-                largo passa sozinha assim que outra imagem entra na tela.
-              */}
-              <div
-                className={
-                  marca.logoDarkUrl
-                    ? "rounded-md"
-                    : "rounded-md dark:bg-white dark:px-3 dark:py-2 dark:shadow-sm"
-                }
-              >
-                {marca.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    data-testid="logo-da-fachada"
-                    src={marca.logoUrl}
-                    alt={marca.nome}
-                    className={
-                      marca.logoDarkUrl
-                        ? "h-auto max-h-20 w-auto max-w-[12rem] object-contain dark:hidden"
-                        : "h-auto max-h-20 w-auto max-w-[12rem] object-contain"
-                    }
-                  />
-                ) : (
-                  <span className="dark:hidden">{marca.nome}</span>
-                )}
-                {marca.logoDarkUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    data-testid="logo-escuro-da-fachada"
-                    src={marca.logoDarkUrl}
-                    alt={marca.nome}
-                    className="hidden h-auto max-h-20 w-auto max-w-[12rem] object-contain dark:block"
-                  />
-                ) : null}
+      <main className="vinicore-access min-h-dvh">
+        <div className="mx-auto flex min-h-dvh max-w-[1600px] flex-col lg:flex-row">
+          <section className="relative hidden overflow-hidden bg-[#07172d] px-12 py-12 text-white lg:flex lg:w-[46%] lg:flex-col lg:justify-between xl:px-20" aria-label="VChat da ViniCore">
+            <Link href="/" className="relative inline-flex w-fit items-center gap-2 text-sm font-bold tracking-tight text-white">ViniCore<span className="text-cyan-300">Tecnologia</span></Link>
+            <div className="relative max-w-xl py-16">
+              {marca.logoUrl ? <img src={marca.logoUrl} alt={marca.nome} className="mb-10 h-auto max-h-36 w-56 object-contain object-left" /> : <p className="vinicore-wordmark mb-10 text-4xl">{marca.nome}</p>}
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Conversas que movem negócios</p>
+              <h2 className="text-4xl font-bold leading-[1.12] tracking-tight xl:text-5xl">Seu atendimento.<br />Uma operação<br /><span className="text-cyan-300">mais conectada.</span></h2>
+              <p className="mt-6 max-w-md text-base leading-7 text-slate-300">Conversas, equipe, agenda e vendas reunidas no VChat, com a tecnologia da ViniCore.</p>
+              <div className="mt-10 flex flex-wrap gap-2 text-xs text-slate-200"><span className="rounded-full border border-white/20 px-3 py-2">Atendimento</span><span className="rounded-full border border-white/20 px-3 py-2">Agenda</span><span className="rounded-full border border-white/20 px-3 py-2">Automação</span></div>
+            </div>
+            <p className="relative text-xs text-slate-400">Tecnologia para aproximar pessoas e negócios.</p>
+          </section>
+          <section className="flex min-h-dvh flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+            <div className="w-full max-w-md">
+              <Link href="/" className="mb-8 flex flex-col items-center gap-2 text-center lg:hidden">
+                {marca.logoUrl ? <img data-testid="logo-da-fachada" src={marca.logoUrl} alt={marca.nome} className="h-auto max-h-32 w-52 object-contain" /> : <span className="vinicore-wordmark text-3xl">{marca.nome}</span>}
+                <span className="text-xs font-semibold tracking-wide text-text-muted">por ViniCore Tecnologia</span>
+              </Link>
+              <div className="rounded-2xl border border-border bg-surface p-7 shadow-lg sm:p-9">
+                <p className="mb-5 text-[11px] font-extrabold uppercase tracking-[0.18em] text-accent-600 dark:text-cyan-300">Acesso à sua operação</p>
+                {children}
               </div>
+              <div className="mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-text-muted"><Link href="/">VChat · ViniCore</Link><Link href="/legal/privacy" className="hover:underline">Privacidade</Link><Link href="/legal/terms" className="hover:underline">Termos de uso</Link></div>
             </div>
-          ) : marcaEhADoProduto({ name: marca.nome, logoUrl: null }) ? (
-            <div className="flex justify-center">
-              <LogotipoDoProduto nome={marca.nome} className="h-12 w-auto" />
-            </div>
-          ) : null}
-          {children}
+          </section>
         </div>
-      </div>
+      </main>
     </IdiomaProvider>
   );
 }

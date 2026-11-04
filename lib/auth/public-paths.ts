@@ -52,6 +52,12 @@ export const PUBLIC_PATHS: RegExp[] = [
   // instalação (`TENANT_PROVISIONING_SECRET`), checado dentro da rota, que
   // responde 404 enquanto o segredo não existe. Sem cookie, igual /cron/.
   /^\/api\/v1\/tenants\/provision$/,
+  // Integração VFood (servidor a servidor): Bearer do MESMO segredo da instalação, checado dentro de cada rota
+  // (`lib/integrations/vfood/auth.ts`, que também exige o restaurante e só age na organização que a integração criou
+  // para ele). Sem cookie de sessão. Lista FECHADA, rota por rota — nada de prefixo aberto.
+  /^\/api\/v1\/integrations\/vfood\/organizations$/,
+  /^\/api\/v1\/integrations\/vfood\/organizations\/adopt$/,
+  /^\/api\/v1\/integrations\/vfood\/organizations\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(mcp|agent|agent\/active|session|session\/qr|session\/disconnect)$/i,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria
   // rota — sem isto o proxy devolve 401 e o follow-up waiting_reply nunca anda.
   /^\/api\/v1\/system\/relogio\/tick$/,

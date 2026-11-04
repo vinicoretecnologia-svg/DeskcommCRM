@@ -32,49 +32,49 @@
 
 :root {
   /* Surfaces (light) */
-  --color-bg: #faf9f6;
+  --color-bg: #f6f9fc;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f5f3ee;
+  --color-surface-elevated: #edf3f9;
   --color-overlay: rgba(28, 26, 22, 0.42);
 
   /* Text (light) */
-  --color-text: #1c1a16;
-  --color-text-muted: #5d594f;
-  --color-text-subtle: #7d786c;
+  --color-text: #14263d;
+  --color-text-muted: #52647a;
+  --color-text-subtle: #64748b;
 
   /* Borders (light) */
-  --color-border: #e7e3da;
-  --color-border-strong: #d2cdbf;
+  --color-border: #dce5ef;
+  --color-border-strong: #c6d3e2;
 
   /* Accent — Sage (11 stops) */
-  --color-accent-50: #f3f6f1;
-  --color-accent-100: #e4ebe0;
-  --color-accent-200: #c8d6c1;
-  --color-accent-300: #a4ba9a;
-  --color-accent-400: #82a077;
-  --color-accent-500: #67885d;
-  --color-accent-600: #506d48;
-  --color-accent-700: #41573b;
-  --color-accent-800: #374731;
-  --color-accent-900: #2f3c2b;
-  --color-accent-950: #171f15;
+  --color-accent-50: #f0f9ff;
+  --color-accent-100: #e0f2fe;
+  --color-accent-200: #bae6fd;
+  --color-accent-300: #7dd8ff;
+  --color-accent-400: #38c5f5;
+  --color-accent-500: #078ff5;
+  --color-accent-600: #0876d1;
+  --color-accent-700: #075985;
+  --color-accent-800: #0c4a6e;
+  --color-accent-900: #082f49;
+  --color-accent-950: #041e30;
   --color-accent: var(--color-accent-600);
   --color-accent-fg: #ffffff;
   --color-accent-soft: var(--color-accent-100);
   --color-accent-hover: var(--color-accent-700);
 
   /* Neutrals — greige (11 stops, light) */
-  --color-neutral-50: #faf9f6;
-  --color-neutral-100: #f3f1ec;
-  --color-neutral-200: #e7e3da;
-  --color-neutral-300: #d2cdbf;
-  --color-neutral-400: #a9a395;
-  --color-neutral-500: #7d786c;
-  --color-neutral-600: #5d594f;
-  --color-neutral-700: #46433b;
-  --color-neutral-800: #2e2c26;
-  --color-neutral-900: #1c1a16;
-  --color-neutral-950: #0e0d0a;
+  --color-neutral-50: #f6f9fc;
+  --color-neutral-100: #edf3f9;
+  --color-neutral-200: #dce5ef;
+  --color-neutral-300: #c6d3e2;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #52647a;
+  --color-neutral-700: #34465d;
+  --color-neutral-800: #24364c;
+  --color-neutral-900: #14263d;
+  --color-neutral-950: #091525;
 
   /* States (light) */
   --color-success: #5a8a5f;
@@ -263,30 +263,30 @@
    (lib/branding/css.ts), que só ganha consumidor com a tela de marca.
    ───────────────────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --color-bg: #faf9f6;
+  --color-bg: #f6f9fc;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f5f3ee;
+  --color-surface-elevated: #edf3f9;
   --color-overlay: rgba(28, 26, 22, 0.42);
-  --color-text: #1c1a16;
-  --color-text-muted: #5d594f;
-  --color-text-subtle: #7d786c;
-  --color-border: #e7e3da;
-  --color-border-strong: #d2cdbf;
+  --color-text: #14263d;
+  --color-text-muted: #52647a;
+  --color-text-subtle: #64748b;
+  --color-border: #dce5ef;
+  --color-border-strong: #c6d3e2;
   --color-accent: var(--color-accent-600);
   --color-accent-fg: #ffffff;
   --color-accent-soft: var(--color-accent-100);
   --color-accent-hover: var(--color-accent-700);
-  --color-neutral-50: #faf9f6;
-  --color-neutral-100: #f3f1ec;
-  --color-neutral-200: #e7e3da;
-  --color-neutral-300: #d2cdbf;
-  --color-neutral-400: #a9a395;
-  --color-neutral-500: #7d786c;
-  --color-neutral-600: #5d594f;
-  --color-neutral-700: #46433b;
-  --color-neutral-800: #2e2c26;
-  --color-neutral-900: #1c1a16;
-  --color-neutral-950: #0e0d0a;
+  --color-neutral-50: #f6f9fc;
+  --color-neutral-100: #edf3f9;
+  --color-neutral-200: #dce5ef;
+  --color-neutral-300: #c6d3e2;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #52647a;
+  --color-neutral-700: #34465d;
+  --color-neutral-800: #24364c;
+  --color-neutral-900: #14263d;
+  --color-neutral-950: #091525;
   --color-success: #5a8a5f;
   --color-success-bg: rgba(90, 138, 95, 0.12);
   --color-success-fg: #41673f;
@@ -341,9 +341,9 @@
 
 [data-theme="dark"] {
   /* Surfaces (dark — drawn) */
-  --color-bg: #161510;
-  --color-surface: #1d1c17;
-  --color-surface-elevated: #272620;
+  --color-bg: #07111f;
+  --color-surface: #0d1b2d;
+  --color-surface-elevated: #122640;
   --color-overlay: rgba(0, 0, 0, 0.55);
 
   /* Text (dark) */
@@ -352,24 +352,24 @@
   --color-text-subtle: #605e54;
 
   /* Borders (dark) */
-  --color-border: #33312a;
-  --color-border-strong: #444239;
+  --color-border: #1e3853;
+  --color-border-strong: #2b5275;
 
   /* Accent stays same hex stops; default shifts up for dark contrast */
-  --color-accent-50: #f3f6f1;
-  --color-accent-100: #e4ebe0;
-  --color-accent-200: #c8d6c1;
-  --color-accent-300: #a4ba9a;
-  --color-accent-400: #82a077;
-  --color-accent-500: #67885d;
-  --color-accent-600: #506d48;
-  --color-accent-700: #41573b;
-  --color-accent-800: #374731;
-  --color-accent-900: #2f3c2b;
-  --color-accent-950: #171f15;
+  --color-accent-50: #f0f9ff;
+  --color-accent-100: #e0f2fe;
+  --color-accent-200: #bae6fd;
+  --color-accent-300: #7dd8ff;
+  --color-accent-400: #38c5f5;
+  --color-accent-500: #078ff5;
+  --color-accent-600: #0876d1;
+  --color-accent-700: #075985;
+  --color-accent-800: #0c4a6e;
+  --color-accent-900: #082f49;
+  --color-accent-950: #041e30;
   --color-accent: var(--color-accent-400);
   --color-accent-fg: #161510;
-  --color-accent-soft: rgba(130, 160, 119, 0.16);
+  --color-accent-soft: rgba(56, 197, 245, 0.16);
   --color-accent-hover: var(--color-accent-300);
 
   /* Neutrals — greige (11 stops, dark) */
@@ -970,7 +970,7 @@
   .card-pulse {
     animation: none;
     /* Anel ESTÁTICO, não fundo: no tema claro `--color-accent-soft` é cor
-       sólida (#e4ebe0), e um overlay sólido sobre o card inteiro deixaria quem
+       sólida (#e0f2fe), e um overlay sólido sobre o card inteiro deixaria quem
        usa movimento reduzido 1,2s SEM LER o card. O caminho de acessibilidade
        é para ser igual, não pior — então o aviso é o mesmo anel, só que parado.
        Ele dura os PULSE_MS inteiros (useBoard.ts), NÃO os 320ms da animação:
@@ -1417,7 +1417,7 @@
    tem de respeitar isso.
 
    As rampas são desenhadas separadamente, não invertidas — no claro a 500
-   (#7d786c) é mais ESCURA que a 400 (#a9a395), e no escuro a 500 (#444239)
+   (#64748b) é mais ESCURA que a 400 (#94a3b8), e no escuro a 500 (#444239)
    também é. Contra fundo claro, mais escuro = mais contraste; contra fundo
    escuro, mais escuro = MENOS contraste. Usar a 500 nos dois temas daria uma
    faixa que realça no claro e APAGA no escuro, caindo abaixo do piso justamente
@@ -1503,3 +1503,16 @@
     animation-iteration-count: infinite !important;
   }
 }
+
+/* ViniCore public surfaces use semantic tokens in both themes. */
+.vinicore-access { color: var(--color-text); background: var(--color-bg); }
+.vinicore-access input { min-height: 48px; }
+.vinicore-access input:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-text);
+  box-shadow: 0 0 0 1000px var(--color-surface-elevated) inset;
+}
+.vinicore-access h1 { color: var(--color-text); letter-spacing: -0.035em; }
+.vinicore-access label { color: var(--color-text); }
+.vinicore-wordmark { letter-spacing: -0.05em; font-weight: 800; }
+.vinicore-landing { --vc-navy: #07172d; }
+.vinicore-landing a:focus-visible { outline: 3px solid #22d3ee; outline-offset: 5px; }

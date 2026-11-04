@@ -23,7 +23,8 @@
  * Só com as duas a ferramenta sai com `category: "read"`. O resto sai como
  * `write`, e uma escrita num turno com contato cai na conferência de escopo de
  * `pickToolsFromMcp` — recusada com `escrita_sem_escopo_do_turno` — em vez de
- * passar por fora dela. `readOnlyHint` sozinho não basta: um servidor que se
+ * passar por fora dela. A exceção é a marca `escrita_do_contato`, que só o
+ * administrador dá (ver `ids.ts` e `escritaDoContatoPeloServidor` em `types.ts`). `readOnlyHint` sozinho não basta: um servidor que se
  * diga "readOnly" num `cancelar_pedido` estaria escolhendo sozinho atravessar
  * a regra da conversa.
  *
@@ -148,6 +149,9 @@ export function definirFerramentasRemotas(
       category: ehLeitura ? "read" : "write",
       requiresRole: "agent",
       requiresScope: ehLeitura ? "mcp:read" : "mcp:write",
+      // Escrita do contato: a marca é SÓ do administrador (`ids.ts`). O servidor
+      // não tem como pedir isto — nenhuma anotação do protocolo chega aqui.
+      ...(escolha.escritaDoContato ? { escritaDoContatoPeloServidor: true as const } : {}),
       handler: async (input) => {
         const resultado = await chamarFerramentaRemota(
           servidor,

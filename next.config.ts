@@ -77,6 +77,7 @@ const nextConfig: NextConfig = {
   // typedRoutes moved out of experimental in Next 15.5+
   typedRoutes: true,
   experimental: {
+    cpus: 2, // Bound build workers on the shared ViniCore VPS.
     optimizePackageImports: ["@phosphor-icons/react", "lucide-react", "date-fns"],
   },
   images: {

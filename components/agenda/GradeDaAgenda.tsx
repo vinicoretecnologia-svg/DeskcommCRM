@@ -383,6 +383,13 @@ function BlocoDeAgendamento({
   const trilha = pessoa?.trilha ?? 1;
   const doGoogle = agendamento.origem === "google_sync";
   const cancelado = agendamento.situacao === "cancelled";
+  // A rota já põe o nome no título dos agendamentos novos ("Avaliação física —
+  // Fulano"); repetir no card viraria "… — Fulano · Fulano".
+  const quem = agendamento.quemSeraAtendido?.trim();
+  const quemFaltaNoTitulo =
+    quem && !agendamento.titulo.toLocaleLowerCase("pt-BR").includes(quem.toLocaleLowerCase("pt-BR"))
+      ? quem
+      : undefined;
 
   return (
     <button
@@ -478,11 +485,14 @@ function BlocoDeAgendamento({
       />
       <span className="ml-1 truncate text-[11px] font-semibold leading-4 text-text">
         {agendamento.titulo}
+        {/* Card curto (30min) só tem uma linha: sem isto o quadro do dia era uma
+            coluna de "Avaliação física" e ninguém sabia quem vinha. */}
+        {duracao < 45 && quemFaltaNoTitulo ? ` · ${quemFaltaNoTitulo}` : ""}
       </span>
       {duracao >= 45 && (
         <span className="ml-1 truncate text-[10px] leading-3 tabular-nums text-text-muted">
           {rotuloHora(comeca, fuso)}
-          {agendamento.quemSeraAtendido ? ` · ${agendamento.quemSeraAtendido}` : ""}
+          {quemFaltaNoTitulo ? ` · ${quemFaltaNoTitulo}` : ""}
         </span>
       )}
     </button>

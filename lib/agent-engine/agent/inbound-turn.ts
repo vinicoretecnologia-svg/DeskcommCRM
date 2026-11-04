@@ -4313,7 +4313,23 @@ async function executarTurnoDoAgente(
                 ...mcpTool,
                 execute: (async (...args: Parameters<typeof executeOriginal>) => {
                   agendaToolCalledThisTurn = true;
-                  return executeOriginal(...args);
+                  const resultado = await executeOriginal(...args);
+                  // O compromisso gravado prova a confirmação ao revisor de promessa;
+                  // a consulta de horários livres não prova vaga e não entra.
+                  if (name !== 'crm_find_free_slots') evidenciasComerciais.registrarAgendamento(resultado);
+                  return resultado;
+                }) as typeof mcpTool.execute,
+              };
+            } else if (name === 'crm_cancel_appointment' && typeof mcpTool.execute === 'function') {
+              // Fora de AGENDA_TOOL_NAMES de propósito: desmarcar não é "checar a
+              // agenda" para o agendaStallGate. Só a prova do cancelamento entra.
+              const executeOriginal = mcpTool.execute.bind(mcpTool);
+              rawTools[name] = {
+                ...mcpTool,
+                execute: (async (...args: Parameters<typeof executeOriginal>) => {
+                  const resultado = await executeOriginal(...args);
+                  evidenciasComerciais.registrarAgendamento(resultado);
+                  return resultado;
                 }) as typeof mcpTool.execute,
               };
             } else {

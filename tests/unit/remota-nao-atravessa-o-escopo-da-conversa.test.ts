@@ -84,6 +84,11 @@ function montar(opts: {
   escolha: string;
   contato?: string;
   ferramentas?: FerramentaRemota[];
+  /** O contato a que o servidor montado está amarrado (`carregar.ts`). */
+  servidorDoContato?: string;
+  /** Troca o handler da remota, para não abrir rede. */
+  chamar?: () => Promise<unknown>;
+  pipelineIds?: string[];
 }) {
   const supabase = supabaseDeMentira();
   return pickToolsFromMcp({
@@ -94,9 +99,52 @@ function montar(opts: {
     handoffToolEnabled: false,
     handoffSignal: { triggered: false },
     ...(opts.contato ? { contatoDoTurno: opts.contato } : {}),
+    ...(opts.pipelineIds ? { pipelineIds: opts.pipelineIds } : {}),
     servidorMcpExterno: {
       servidor: SERVIDOR,
       ferramentas: opts.ferramentas ?? FERRAMENTAS,
+      ...(opts.servidorDoContato
+        ? {
+            contato: opts.servidorDoContato,
+            cabecalhos: { "X-Deskcomm-Contato-Id": opts.servidorDoContato },
+          }
+        : {}),
+      ...(opts.chamar
+        ? {
+            fetch: (async (_url: unknown, init?: { body?: unknown; method?: string }) => {
+              // Stub mínimo do MCP: responde initialize e tools/call em JSON.
+              if (init?.method !== "POST") return new Response(null, { status: 405 });
+              const msg = JSON.parse(String(init?.body ?? "{}"));
+              if (msg.method === "initialize") {
+                return new Response(
+                  JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: msg.id,
+                    result: {
+                      protocolVersion: msg.params?.protocolVersion,
+                      capabilities: { tools: {} },
+                      serverInfo: { name: "stub", version: "1" },
+                    },
+                  }),
+                  { status: 200, headers: { "content-type": "application/json" } },
+                );
+              }
+              if (msg.method === "tools/call") {
+                await opts.chamar!();
+                return new Response(
+                  JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: msg.id,
+                    result: { content: [{ type: "text", text: "pedido VF-1 criado" }] },
+                  }),
+                  { status: 200, headers: { "content-type": "application/json" } },
+                );
+              }
+              if (msg.id === undefined) return new Response(null, { status: 202 });
+              return new Response(null, { status: 405 });
+            }) as never,
+          }
+        : {}),
     },
   });
 }
@@ -185,6 +233,85 @@ describe("remota classificada como escrita cai na conferência de escopo do turn
   it("sem contato, a mesma leitura remota monta (a recusa não é geral demais)", () => {
     const montadas = montar({ escolha: toolIdRemoto("erp_consultar_pedido", "leitura") });
     expect(montadas.erp_consultar_pedido).toBeDefined();
+  });
+});
+
+// ─── 2b. Escrita do contato (ViniCore) ───────────────────────────────────────
+
+describe("`escrita_do_contato`: a escrita remota que o servidor amarra ao cliente da conversa", () => {
+  const ESCOLHA = toolIdRemoto("erp_faturar_pedido", "escrita_do_contato");
+
+  it("a marca é do administrador: continua `write` / `mcp:write`, com a flag", () => {
+    const [def] = definirFerramentasRemotas(SERVIDOR, FERRAMENTAS, OCUPADAS, [
+      { nome: "erp_faturar_pedido", leitura: false, escritaDoContato: true },
+    ]);
+    expect(def!.category).toBe("write");
+    expect(def!.requiresScope).toBe("mcp:write");
+    expect(def!.escritaDoContatoPeloServidor).toBe(true);
+    // Sem a marca, nenhuma remota ganha a flag — nem a que se declara leitura.
+    const [comum] = definirFerramentasRemotas(SERVIDOR, FERRAMENTAS, OCUPADAS, [
+      { nome: "erp_cancelar_pedido", leitura: false },
+    ]);
+    expect(comum!.escritaDoContatoPeloServidor).toBeUndefined();
+  });
+
+  it("servidor amarrado a ESTE contato: monta e EXECUTA no turno de atendimento", async () => {
+    const chamadas: number[] = [];
+    const montadas = montar({
+      escolha: ESCOLHA,
+      contato: CONTATO,
+      servidorDoContato: CONTATO,
+      chamar: async () => void chamadas.push(1),
+    });
+    const ferramenta = montadas.erp_faturar_pedido as unknown as {
+      execute: (a: unknown) => Promise<unknown>;
+    };
+    expect(ferramenta).toBeDefined();
+    expect(await ferramenta.execute({ itens: [] })).toEqual({ texto: "pedido VF-1 criado" });
+    expect(chamadas).toHaveLength(1);
+  });
+
+  it("o escopo de funil não recusa por vacuidade (ela não toca negócio do CRM)", async () => {
+    const montadas = montar({
+      escolha: ESCOLHA,
+      contato: CONTATO,
+      servidorDoContato: CONTATO,
+      pipelineIds: ["22222222-2222-4222-8222-222222222222"],
+      chamar: async () => undefined,
+    });
+    const ferramenta = montadas.erp_faturar_pedido as unknown as {
+      execute: (a: unknown) => Promise<unknown>;
+    };
+    expect(await ferramenta.execute({})).toEqual({ texto: "pedido VF-1 criado" });
+  });
+
+  it("servidor SEM a identidade do contato: nem monta", () => {
+    const montadas = montar({ escolha: ESCOLHA, contato: CONTATO });
+    expect(montadas.erp_faturar_pedido).toBeUndefined();
+  });
+
+  it("servidor amarrado a OUTRO contato: nem monta", () => {
+    const montadas = montar({
+      escolha: ESCOLHA,
+      contato: CONTATO,
+      servidorDoContato: "33333333-3333-4333-8333-333333333333",
+    });
+    expect(montadas.erp_faturar_pedido).toBeUndefined();
+  });
+
+  it("controle: a MESMA ferramenta marcada `escrita` comum segue recusada na conversa", async () => {
+    const montadas = montar({
+      escolha: toolIdRemoto("erp_faturar_pedido", "escrita"),
+      contato: CONTATO,
+      servidorDoContato: CONTATO,
+    });
+    const ferramenta = montadas.erp_faturar_pedido as unknown as {
+      execute: (a: unknown) => Promise<unknown>;
+    };
+    expect(await ferramenta.execute({})).toMatchObject({
+      permitido: false,
+      motivo: "escrita_sem_escopo_do_turno",
+    });
   });
 });
 

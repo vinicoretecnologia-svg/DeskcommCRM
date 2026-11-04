@@ -48,3 +48,18 @@ Se o contato não puder ser confirmado no banco naquele turno, o servidor fica
 fora do turno. Cada chamada feita em atendimento fica auditada com o
 `contact_id` da conversa (`metadata.contact_id`). Ferramentas marcadas como
 **escrita** continuam recusadas durante a conversa, com ou sem a opção.
+
+### Escrita do contato (ViniCore)
+
+Uma terceira marca, `mcp_externo:escrita_do_contato:<nome>`, deixa uma escrita
+remota entrar no atendimento — por exemplo, `criar_pedido` de um sistema de
+delivery. Só quem administra dá a marca; o servidor não tem como pedir isso.
+
+Ela vale com as mesmas condições da leitura em atendimento: opção
+`mcp_externo_no_atendimento` ligada e o servidor carregado com a identidade
+**deste** contato (`X-Deskcomm-*`). Sem isso, a ferramenta nem monta no turno.
+Montada, ela não passa pela tabela `ESCOPO_DAS_ESCRITAS` nem pelo escopo de
+funil (não toca registro do CRM): **quem amarra o efeito ao cliente é o
+servidor**, pelos cabeçalhos. Use só com servidor que faz isso — o telefone do
+pedido tem de vir de `X-Deskcomm-Contato-Telefone`, nunca de argumento.
+Auditoria, papel, `mcp:write` e a fila de escritas continuam valendo.

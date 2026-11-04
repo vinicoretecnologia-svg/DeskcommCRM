@@ -4,7 +4,7 @@
  * Não recebe histórico, notas do contato, prompt do agente ou argumentos de tool.
  */
 export interface EvidenciaComercial {
-  origem: "catalogo" | "conhecimento";
+  origem: "catalogo" | "conhecimento" | "agenda";
   referencia: string;
   titulo: string;
   conteudo: string;
@@ -147,9 +147,51 @@ export function criarEvidenciasComerciaisDoTurno(fontesHabilitadas: readonly str
     }
   }
 
+  /**
+   * O compromisso que o SERVIDOR gravou neste turno (marcar/remarcar/desmarcar
+   * com sucesso).
+   *
+   * Sem isto, a confirmação verdadeira de um agendamento era vetada como "vaga
+   * confirmada sem comprovação": a única prova que o revisor recebia era a base
+   * de conhecimento, e o retorno da ferramenta de agenda não chegava a ele. O
+   * turno terminava com o horário gravado e o cliente sem resposta.
+   *
+   * Só entra retorno de SUCESSO, com o compromisso que o banco devolveu — nunca
+   * os argumentos que o modelo escreveu. Recusa (`marcado: false`), erro e
+   * resposta sem `compromisso` ficam de fora. O status vai junto: `pending` prova
+   * horário RESERVADO, não confirmado.
+   */
+  function registrarAgendamento(resultado: unknown) {
+    const r = objeto(resultado);
+    if (!r || r.error || r.erro || r.ok === false) return;
+    if (r.marcado !== true && r.remarcado !== true && r.cancelado !== true) return;
+    const c = objeto(r.compromisso);
+    const id = texto(c?.id);
+    const quando = texto(c?.quando) ?? texto(r.quando);
+    const status = texto(c?.status);
+    if (!c || !id || !quando || !status) return;
+    guardar({
+      origem: "agenda",
+      referencia: id,
+      titulo:
+        r.cancelado === true
+          ? "Compromisso desmarcado neste turno"
+          : r.remarcado === true
+            ? "Compromisso remarcado neste turno"
+            : "Compromisso gravado neste turno",
+      conteudo: JSON.stringify({
+        quando,
+        fim_quando: texto(c.fim_quando),
+        status,
+        aguarda_confirmacao: r.aguarda_confirmacao === true || status === "pending",
+      }),
+    });
+  }
+
   return {
     registrarConhecimento,
     registrarCatalogo,
+    registrarAgendamento,
     // Relevância escolhe o CONTEXTO, nunca concede autorização. O classificador
     // recebe os trechos completos, inclusive condições/negações, e decide.
     ler: (candidata = ""): EvidenciaComercial[] => {
@@ -183,7 +225,7 @@ export function criarEvidenciasComerciaisDoTurno(fontesHabilitadas: readonly str
       // Reserva mínima para cada origem: política e produto complementam-se.
       // O restante segue a relevância global, sem duplicar ou truncar itens.
       for (let i = 0; i < 3; i++)
-        for (const origem of ["conhecimento", "catalogo"] as const) {
+        for (const origem of ["agenda", "conhecimento", "catalogo"] as const) {
           const item = ordenadas.filter(({ e }) => e.origem === origem)[i];
           if (item) adicionar(item.e);
         }

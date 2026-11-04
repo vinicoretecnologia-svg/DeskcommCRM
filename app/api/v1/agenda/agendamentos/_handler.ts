@@ -242,6 +242,24 @@ async function exigeDonoDoCompromisso(
 
 const ENDPOINT_IDEMPOTENCIA_AGENDA = "/api/v1/agenda/agendamentos";
 
+const MAX_TITULO = 200;
+
+/**
+ * O título é o nome do evento no Google e na agenda: sem o nome de quem vem,
+ * a equipe vê "Avaliação física" repetido e não sabe quem atender. O nome
+ * entra quando o título ainda não o traz — o modelo às vezes já escreve
+ * "Avaliação física - Fulano", e repetir viraria "… - Fulano — Fulano".
+ * Contato anonimizado (LGPD) ou sem nome deixa o título como veio.
+ */
+export function tituloComOContato(titulo: string, nomeDoContato: string | null): string {
+  const nome = nomeDoContato?.trim();
+  if (!nome || titulo.toLocaleLowerCase("pt-BR").includes(nome.toLocaleLowerCase("pt-BR"))) {
+    return titulo;
+  }
+  const sufixo = ` — ${nome}`;
+  return titulo.slice(0, Math.max(0, MAX_TITULO - sufixo.length)).trimEnd() + sufixo;
+}
+
 /**
  * Cria o recibo no handler compartilhado, onde REST e MCP chegam ao mesmo
  * efeito persistente. Requests externos fornecem a chave pelo header; o
@@ -370,10 +388,11 @@ async function executarCriacaoDeAgendamento(
   //
   // O molde é o de `app/api/v1/messages/_handler.ts:333` — resolver contra a org
   // e recusar com 404, sem dizer se o id existe noutro lugar.
+  let nomeDoContato: string | null = null;
   if (input.contact_id) {
     const { data: contato, error: erroContato } = await supabase
       .from("contacts")
-      .select("id")
+      .select("id, name, display_name, is_anonymized")
       .eq("id", input.contact_id)
       .eq("organization_id", ctx.organization_id)
       .maybeSingle();
@@ -383,6 +402,7 @@ async function executarCriacaoDeAgendamento(
     if (!contato) {
       throw new ApiError(404, "not_found", undefined, ctx.requestId, "Contato não encontrado.");
     }
+    nomeDoContato = contato.is_anonymized ? null : (contato.name ?? contato.display_name ?? null);
   }
 
   const fim = new Date(inicio.getTime() + tipo.duration_minutes * 60_000);
@@ -406,7 +426,7 @@ async function executarCriacaoDeAgendamento(
     .insert({
       organization_id: ctx.organization_id,
       event_type_id: tipo.id,
-      title: input.title ?? tipo.name,
+      title: tituloComOContato(input.title ?? tipo.name, nomeDoContato),
       starts_at: inicio.toISOString(),
       ends_at: fim.toISOString(),
       // O fuso do compromisso é campo de primeira classe: é o da JORNADA, onde
