@@ -176,9 +176,57 @@ describe("o discador respeita quem pediu para não ser incomodado", () => {
   }
 
   const SESSAO_PAREADA = {
-    data: { id: "canal-de-voz", wacalls_session_id: "sessao-up" },
+    data: [{ id: "canal-de-voz", wacalls_session_id: "sessao-up", voice_for_channel_session_id: null }],
     error: null,
   };
+
+  describe("a ligação sai pelo número da conversa (migration 9105)", () => {
+    const NUMERO_A = "33333333-3333-4333-8333-333333333333";
+    const NUMERO_B = "44444444-4444-4444-8444-444444444444";
+
+    async function discarPor(numero: string) {
+      const { POST } = await import("@/app/api/v1/voice/calls/route");
+      return POST(
+        new Request("http://x/api/v1/voice/calls", {
+          method: "POST",
+          body: JSON.stringify({ contactId: CONTATO, channelSessionId: numero }),
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    }
+
+    it("número sem voz própria e sem pareamento antigo: 409, e NADA é discado pelo aparelho de outro número", async () => {
+      // Só o número A tem voz. A conversa é do número B.
+      respostas["channel_sessions"] = {
+        data: [{ id: "voz-a", wacalls_session_id: "sessao-a", voice_for_channel_session_id: NUMERO_A }],
+        error: null,
+      };
+      const res = await discarPor(NUMERO_B);
+      expect(res.status).toBe(409);
+      expect(wacalls.startCall).not.toHaveBeenCalled();
+      expect(inseridas.find((i) => i.tabela === "voice_calls")).toBeUndefined();
+    });
+
+    it("número com voz própria: a ligação sai pela sessão DELE, mesmo havendo outra", async () => {
+      respostas["channel_sessions"] = {
+        data: [
+          { id: "voz-a", wacalls_session_id: "sessao-a", voice_for_channel_session_id: NUMERO_A },
+          { id: "voz-b", wacalls_session_id: "sessao-b", voice_for_channel_session_id: NUMERO_B },
+        ],
+        error: null,
+      };
+      respostas["contacts"] = {
+        data: { id: CONTATO, phone_number: "5511900000000", name: "Fulano", is_blocked: false, is_anonymized: false },
+        error: null,
+      };
+      respostas["voice_calls"] = { data: { id: CHAMADA }, error: null };
+      const res = await discarPor(NUMERO_B);
+      expect(res.status).toBe(201);
+      expect(wacalls.startCall).toHaveBeenCalledWith("sessao-b", expect.any(String), expect.any(String));
+      // A linha da ligação guarda a sessão de voz do número usado.
+      expect(inseridas.find((i) => i.tabela === "voice_calls")?.linha.channel_session_id).toBe("voz-b");
+    });
+  });
 
   it("controle positivo: contato normal recebe a ligação", async () => {
     respostas["channel_sessions"] = SESSAO_PAREADA;
@@ -260,7 +308,7 @@ describe("o discador respeita quem pediu para não ser incomodado", () => {
 
 describe("a ponte de eventos grava a ligação antes da rota — e a rota completa em vez de recusar", () => {
   const SESSAO_PAREADA = {
-    data: { id: "canal-de-voz", wacalls_session_id: "sessao-up" },
+    data: [{ id: "canal-de-voz", wacalls_session_id: "sessao-up", voice_for_channel_session_id: null }],
     error: null,
   };
 
@@ -385,7 +433,7 @@ describe("o número pareado cujo socket com o WhatsApp caiu", () => {
     'wacalls_500: {"error":"usync devices: failed to send usync query: websocket not connected"}\n',
   );
   const SESSAO_PAREADA = {
-    data: { id: "canal-de-voz", wacalls_session_id: "sessao-up" },
+    data: [{ id: "canal-de-voz", wacalls_session_id: "sessao-up", voice_for_channel_session_id: null }],
     error: null,
   };
 
@@ -436,7 +484,7 @@ describe("o número pareado cujo socket com o WhatsApp caiu", () => {
 
 describe("o discador exige o consentimento da organização", () => {
   const SESSAO_PAREADA = {
-    data: { id: "canal-de-voz", wacalls_session_id: "sessao-up" },
+    data: [{ id: "canal-de-voz", wacalls_session_id: "sessao-up", voice_for_channel_session_id: null }],
     error: null,
   };
 

@@ -83,7 +83,10 @@ function supabaseFalso(linha: { id: string; wacalls_session_id: string | null } 
     select: () => cadeia,
     eq: () => cadeia,
     is: () => cadeia,
-    maybeSingle: async () => ({ data: linha, error: null }),
+    // `despareaVoz` lê TODAS as linhas de voz da organização (migration 9105):
+    // a cadeia é aguardável e devolve a lista.
+    then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+      resolve({ data: linha ? [linha] : [], error: null }),
     update: (patch: Record<string, unknown>) => {
       escritas.push(patch);
       return { eq: () => ({ eq: async () => ({ error: null }) }) };

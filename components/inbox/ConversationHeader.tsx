@@ -381,7 +381,11 @@ export function ConversationHeader({
         {/* A chamada usa o telefone da ficha, mesmo quando o contato chegou por
             outro canal. Grupos não representam uma pessoa para ligar. */}
         {!conversation.is_group && c?.id && (
-          <DialButton contactId={c.id} hasPhone={!!c.phone_number} />
+          <DialButton
+            contactId={c.id}
+            hasPhone={!!c.phone_number}
+            channelSessionId={conversation.channel_session_id}
+          />
         )}
         {!conversation.is_group && c?.id && activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent && (
           <ReservarServicoNaConversa key={`${activeOrg.orgId}:${conversation.id}`} contactId={c.id} conversationId={conversation.id} contactName={displayName}/>

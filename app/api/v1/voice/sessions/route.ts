@@ -35,8 +35,16 @@ import { getWacallsClient, wacallsFriendlyError } from "@/lib/wacalls/client";
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(): Promise<Response> {
+export async function DELETE(req: Request): Promise<Response> {
   const requestId = randomUUID();
+
+  // `?id=<linha de voz>` desconecta SÓ aquele número (migration 9105). Sem o
+  // parâmetro, desconecta todos — é o que "desligar a voz" precisa. O id é
+  // re-validado: `despareaVoz` só alcança linhas de voz DESTA organização.
+  const idDaLinha = new URL(req.url).searchParams.get("id");
+  if (idDaLinha !== null && !/^[0-9a-f-]{36}$/i.test(idDaLinha)) {
+    return fail("invalid_request", "Identificador de número inválido.", 400, { requestId });
+  }
 
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
@@ -67,7 +75,7 @@ export async function DELETE(): Promise<Response> {
 
   const supabase = await createClient();
   try {
-    const resultado = await despareaVoz(supabase, wacalls, org.orgId);
+    const resultado = await despareaVoz(supabase, wacalls, org.orgId, idDaLinha);
 
     if (resultado.desapareado) {
       void audit({
@@ -77,7 +85,7 @@ export async function DELETE(): Promise<Response> {
         resourceType: "channel_session",
         resourceId: resultado.channelSessionId,
         requestId,
-        metadata: { origem: "rota" },
+        metadata: { origem: "rota", ...(idDaLinha ? { linha_de_voz: idDaLinha } : {}) },
       });
     }
 

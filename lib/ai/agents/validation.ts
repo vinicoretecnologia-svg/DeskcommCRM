@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 import { ehToolIdRemoto } from "@/lib/mcp/servidor-externo/ids";
+import { ESCOLHAS_NO_ENVIO } from "@/lib/agenda/escolha-no-envio";
 import { VALID_TOOL_IDS } from "@/lib/mcp/tools/catalog";
 import { TETO_TOOLS_POR_AGENTE } from "@/lib/mcp/tools/selecao-por-pacote";
 import { TETO_DO_PUBLICO } from "@/lib/agent-engine/agent/publico-do-gatilho";
@@ -109,6 +110,17 @@ const followupConfigObjectSchema = z
     flow_pointer_ids: z.array(UUID).max(20).default([]),
     send_window: followupSendWindowSchema.nullable().optional().default(null),
     callback_enabled: z.boolean().optional(),
+    /**
+     * #3813 — "Quando o contato tiver horário marcado", por FLUXO de follow-up:
+     * `adiar` (padrão), `enviar` ou `nao_enviar` (pulo registrado com o motivo
+     * `compromisso_na_agenda`).
+     *
+     * Opcional de propósito: os agentes/versões já gravados não têm a chave, e
+     * ausente é o padrão — a MESMA tolerância de `send_window`. O schema é
+     * `.strict()`, então sem esta linha a tela receberia "campo desconhecido" e
+     * não conseguiria salvar o follow-up de quem usa a escolha.
+     */
+    quando_ha_compromisso: z.enum(ESCOLHAS_NO_ENVIO).optional(),
   })
   .strict();
 
@@ -216,6 +228,12 @@ const versionShapeSchema = z
      * ninguém travar o atendimento sem querer (#1856).
      */
     inbound_debounce_ms: z.number().int().min(0).max(60000).nullable().optional(),
+    /**
+     * Intervalo mínimo, em ms, entre uma resposta da IA e a próxima à MESMA
+     * conversa. `null`/ausente/0 = sem intervalo (comportamento de sempre).
+     * Teto de 10 min, para ninguém deixar o atendimento mudo sem querer.
+     */
+    reply_min_interval_ms: z.number().int().min(0).max(600000).nullable().optional(),
     followup: followupConfigSchema,
     // ── Papel OPERADOR (spec 16 §3.2) ───────────────────────────────────────
     // Todos com `.default(...)`, e é o que mantém retrocompatível: agent e

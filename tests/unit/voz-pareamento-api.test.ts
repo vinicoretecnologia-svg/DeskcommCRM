@@ -1,4 +1,4 @@
-/**
+﻿/**
  * O PAREAMENTO NÃO PASSA PELO `/pair` DO UPSTREAM — e este arquivo é a cerca.
  *
  * `POST /api/sessions` do WaCalls já inicia o pareamento por dentro. O
@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
     wacalls_session_id: string | null;
     wacalls_paired_at?: string | null;
   } | null,
+  /** O número de mensagem que `channelSessionId` aponta (a leitura que usa `.neq("provider", "wacalls")`). */
+  numero: null as { id: string } | null,
   inseridas: [] as Record<string, unknown>[],
   atualizadas: [] as Record<string, unknown>[],
 }));
@@ -46,24 +48,40 @@ vi.mock("@/lib/wacalls/client", () => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: () => {
+      // "select" (leitura, devolve LISTA ao ser aguardada) ou "update" (escrita).
+      let modo: "select" | "update" = "select";
+      let leituraDoNumero = false;
       const query = {
         select: () => query,
         eq: () => query,
+        neq: () => {
+          leituraDoNumero = true;
+          return query;
+        },
         is: () => query,
-        maybeSingle: async () => ({ data: mocks.canal, error: null }),
+        maybeSingle: async () => ({ data: leituraDoNumero ? mocks.numero : mocks.canal, error: null }),
         insert: (linha: Record<string, unknown>) => {
           mocks.inseridas.push(linha);
           mocks.canal = { id: "canal", wacalls_session_id: String(linha.wacalls_session_id) };
           return query;
         },
         update: (patch: Record<string, unknown>) => {
+          modo = "update";
           mocks.atualizadas.push(patch);
           return query;
         },
         single: async () => ({ data: mocks.canal, error: null }),
         // `await supabase.from(...).update(...).eq(...).eq(...)` — o fim da
-        // cadeia é awaitado direto.
-        then: (ok: (r: unknown) => unknown) => ok({ data: null, error: mocks.erroNaEscrita }),
+        // cadeia é awaitado direto. Uma leitura aguardada (a lista de linhas de
+        // voz, migration 9105) devolve as linhas; o `voice_for_channel_session_id`
+        // ausente conta como NULL, isto é, a voz antiga da organização.
+        then: (ok: (r: unknown) => unknown) =>
+          modo === "update"
+            ? ok({ data: null, error: mocks.erroNaEscrita })
+            : ok({
+                data: mocks.canal ? [{ voice_for_channel_session_id: null, ...mocks.canal }] : [],
+                error: null,
+              }),
       };
       return query;
     },
@@ -73,6 +91,7 @@ vi.mock("@/lib/supabase/server", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.canal = null;
+  mocks.numero = null;
   mocks.inseridas = [];
   mocks.atualizadas = [];
   mocks.guarda.mockResolvedValue(null);
@@ -211,6 +230,41 @@ describe("o pareamento cria a sessão uma vez e nunca re-pareia", () => {
   });
 });
 
+describe("uma voz por número de mensagem (migration 9105)", () => {
+  const NUMERO = "22222222-2222-4222-8222-222222222222";
+
+  it("número que não é desta organização: 404, e nada é criado no WaCalls", async () => {
+    mocks.numero = null;
+    const res = await parear({ channelSessionId: NUMERO });
+    expect(res.status).toBe(404);
+    expect(mocks.createSession).not.toHaveBeenCalled();
+    expect(mocks.inseridas).toEqual([]);
+  });
+
+  it("número válido: a sessão leva o nome do número e a linha guarda o vínculo", async () => {
+    mocks.numero = { id: NUMERO };
+    const res = await parear({ channelSessionId: NUMERO });
+    expect(res.status).toBe(200);
+    // O nome por número: duas vozes da mesma empresa não trocam o QR entre si.
+    expect(mocks.createSession).toHaveBeenCalledExactlyOnceWith(`org_${ORG}_ch_${NUMERO}`);
+    expect(mocks.inseridas[0]).toMatchObject({
+      provider: "wacalls",
+      voice_for_channel_session_id: NUMERO,
+    });
+  });
+
+  it("sem número, o pareamento segue o antigo (voz da organização, sem vínculo)", async () => {
+    const res = await parear({});
+    expect(res.status).toBe(200);
+    expect(mocks.inseridas[0]).toMatchObject({ voice_for_channel_session_id: null });
+  });
+
+  it("channelSessionId que não é uuid: 400", async () => {
+    const res = await parear({ channelSessionId: "nao-e-uuid" });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("o banco pode estar atrasado — o WaCalls é perguntado antes de apagar", () => {
   it("banco diz 'não pareada', WaCalls diz 'pareada': nada é apagado, o banco é corrigido, 409", async () => {
     // Worker reiniciando ou atrasado: a tela ofereceu "Parear" para um aparelho
@@ -301,7 +355,7 @@ it("o QR chega pelo relay autenticado e só para a organização dona", async ()
     }),
   );
   const { GET } = await import("@/app/api/v1/voice/events/route");
-  const resposta = await GET();
+  const resposta = await GET(new Request("http://localhost/api/v1/voice/events"));
   expect(resposta.status).toBe(200);
   const texto = await resposta.text();
   expect(texto).toContain('"type":"qr"');
@@ -314,7 +368,7 @@ it("fecha a conexão com o serviço quando o navegador sai do pareamento", async
   const fechar = vi.fn();
   vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream({ cancel: fechar }))));
   const { GET } = await import("@/app/api/v1/voice/events/route");
-  const resposta = await GET();
+  const resposta = await GET(new Request("http://localhost/api/v1/voice/events"));
   const reader = resposta.body!.getReader();
   await reader.read(); // comentário inicial que libera o onopen
   await reader.cancel();
@@ -348,7 +402,7 @@ it("sem sessão no banco, o relay reconhece a sessão pelo nome que o broker anu
     }),
   );
   const { GET } = await import("@/app/api/v1/voice/events/route");
-  const resposta = await GET();
+  const resposta = await GET(new Request("http://localhost/api/v1/voice/events"));
   expect(resposta.status).toBe(200);
   const texto = await resposta.text();
   // Um QR só: o nosso. O da outra organização tem de morrer no filtro.
@@ -371,7 +425,7 @@ it("nome igual não basta quando o banco já conhece o id: as duas fontes SOMAM"
     }),
   );
   const { GET } = await import("@/app/api/v1/voice/events/route");
-  const texto = await (await GET()).text();
+  const texto = await (await GET(new Request("http://localhost/api/v1/voice/events"))).text();
   // O re-pareamento apaga a sessão do banco e cria outra com o mesmo nome; o
   // relay aberto antes disso precisa aceitar as duas — a velha pelo id, a nova
   // pelo nome.
@@ -398,7 +452,7 @@ it("QR vencido encerra a espera — mas só o da sessão cujo QR está na tela",
     }),
   );
   const { GET } = await import("@/app/api/v1/voice/events/route");
-  const texto = await (await GET()).text();
+  const texto = await (await GET(new Request("http://localhost/api/v1/voice/events"))).text();
   const tipos = [...texto.matchAll(/"type":"(\w+)"/g)].map((m) => m[1]);
   expect(tipos).toEqual(["qr", "expired"]);
 });
