@@ -54949,8 +54949,6 @@ begin
     or new.proposal_ai_draft_enabled is distinct from old.proposal_ai_draft_enabled
     or new.inbound_debounce_ms    is distinct from old.inbound_debounce_ms
     or new.reply_min_interval_ms  is distinct from old.reply_min_interval_ms
-    or new.voz_enabled            is distinct from old.voz_enabled
-    or new.voz_quando             is distinct from old.voz_quando
     or new.version_number         is distinct from old.version_number
     or new.agent_id               is distinct from old.agent_id
     or new.organization_id        is distinct from old.organization_id
