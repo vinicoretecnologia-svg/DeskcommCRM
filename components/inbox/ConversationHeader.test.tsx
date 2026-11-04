@@ -154,7 +154,8 @@ describe("ConversationHeader — chamada de voz na Inbox", () => {
     render(<ConversationHeader conversation={atual} />);
 
     await user.click(screen.getByRole("button", { name: "Chamar" }));
-    expect(startCall).toHaveBeenCalledWith("contato-1");
+    // A ligação sai pelo número DA CONVERSA (migration 9105), não por um qualquer.
+    expect(startCall).toHaveBeenCalledWith("contato-1", "sess-1");
   });
 
   it("não oferece chamada individual para um grupo", () => {

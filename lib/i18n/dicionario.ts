@@ -13126,6 +13126,11 @@ export const DICIONARIO: Traducoes = {
     es: "Listo para llamar. El botón de llamada aparece en los contactos que tienen teléfono.",
   },
   "Chamada de voz pareada!": { es: "¡Llamada de voz emparejada!" },
+  // Uma voz por número de mensagem (migration 9105).
+  "Pareie a chamada de voz deste número em Conexões.": {
+    es: "Empareja la llamada de voz de este número en Conexiones.",
+  },
+  "Todos os números (pareamento antigo)": { es: "Todos los números (emparejamiento anterior)" },
   // Central de avisos: o RÓTULO DO KIND e a ORIENTAÇÃO passam por `t()`; o
   // título e o corpo do aviso NÃO — são linha de `agent_inbox_items`, escrita
   // pelo worker com dado de gente dentro (o telefone de quem ligou), e o

@@ -743,11 +743,16 @@ export function useVoiceCallSession(remoteAudioRef: RefObject<HTMLAudioElement |
     void conectarMidia(atual.id);
   }, [conectarMidia, teardownMedia]);
 
-  const startCall = useCallback(async (contactId: string) => {
+  const startCall = useCallback(async (contactId: string, channelSessionId?: string) => {
     if (!podeLigar) return;
     let criada: VoiceCallRow;
     try {
-      const res = await apiClient.post<{ data: VoiceCallRow }>("/api/v1/voice/calls", { contactId });
+      // `channelSessionId` = o número da conversa: a ligação sai pela voz DELE
+      // (migration 9105). Sem ele, a voz da organização, como sempre foi.
+      const res = await apiClient.post<{ data: VoiceCallRow }>(
+        "/api/v1/voice/calls",
+        channelSessionId ? { contactId, channelSessionId } : { contactId },
+      );
       criada = res.data;
     } catch (err) {
       showApiError(err);

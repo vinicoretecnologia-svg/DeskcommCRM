@@ -1,4 +1,4 @@
-# Ligar pelo número da conversa (WhatsApp por QR) — desenho
+﻿# Ligar pelo número da conversa (WhatsApp por QR) — desenho
 
 Data: 2026-11-04 · Estado: **desenho** · Escopo: voz pelo WaCalls, **um pareamento por número**.
 Vídeo e API Oficial ficam fora (ver `2026-11-04-ligar-pela-api-oficial-design.md`).
@@ -49,8 +49,7 @@ O `channelSessionId` vem **da conversa lida do banco, nunca do body cru**: a rot
 - `GET /voice/sessions/status` devolve a **lista** `[{ channelSessionId, voiceSessionId,
   status, paired, jid }]`; o formato antigo (um objeto) continua nos campos de topo para a tela
   velha, até o hook novo entrar.
-- `DELETE /voice/sessions?channelSessionId=…` despareia **só aquele** número; sem o parâmetro,
-  todos (é o que o PUT do opt-in precisa: desligar a feature despareia tudo).
+- `DELETE /voice/sessions?id=<linha de voz>` despareia **só aquele** número; sem o parâmetro, todos (é o que o PUT do opt-in precisa: desligar a feature despareia tudo).
 - `POST /voice/calls` aceita `{ contactId, conversationId? }`; com a conversa, a ligação sai
   pelo número dela. Se aquele número **não tem voz pareada**, responde 409 com texto claro
   ("este número ainda não tem chamada de voz") — **nunca** cai em outro número em silêncio, porque
