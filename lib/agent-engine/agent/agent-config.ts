@@ -17,6 +17,7 @@ import type pg from 'pg';
 
 import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from './janela-de-atendimento';
 import { lerTextoDoAvisoForaDoHorario } from './aviso-fora-do-horario';
+import { lerAtendimentoAutomatico, type AtendimentoAutomatico } from '@/lib/organizacao/atendimento-automatico';
 
 export interface PublishedAgentConfig {
   operationMode?: 'automatic' | 'assisted';
@@ -52,7 +53,17 @@ export interface PublishedAgentConfig {
   inboundDebounceMs: number | null;
   /** Intervalo mínimo (ms) entre uma resposta da IA e a próxima à mesma conversa. `null` = sem intervalo. */
   replyMinIntervalMs: number | null;
-  /** input multimodal (imagem/áudio/pdf) habilitado no turno (Onda 3). */
+  /**
+   * As chaves simples da EMPRESA (Configurações › Atendimento): quando a empresa
+   * mexe na espera ou na pausa, o painel vence o campo do agente. Opcional porque
+   * nasce depois das fixtures que montam este tipo à mão; sem ele, vale o agente.
+   */
+  atendimentoDaEmpresa?: AtendimentoAutomatico;
+  /**
+   * input multimodal (imagem/áudio/pdf) habilitado no turno (Onda 3). Já leva em
+   * conta a chave "Entender áudios e fotos" da empresa: desligada ali, é falso
+   * aqui mesmo com o agente ligado.
+   */
   multimodalInput: boolean;
   /** tools open_human_case/provide_case_update habilitadas no turno (spec 15). */
   casesEnabled: boolean;
@@ -158,6 +169,8 @@ interface Row {
   trigger_config: unknown;
   version_created_by: string | null;
   agent_created_by: string | null;
+  /** `organizations.settings.atendimento_ia` (subconsulta abaixo). */
+  org_atendimento_ia?: unknown;
 }
 
 const SELECT_AGENT_CONFIG_COLUMNS = `a.operation_mode,a.paused_at,a.operation_revision::text,a.id as agent_id,
@@ -191,7 +204,8 @@ const SELECT_AGENT_CONFIG_COLUMNS = `a.operation_mode,a.paused_at,a.operation_re
             v.knowledge_source_ids,
             v.trigger_config,
             v.created_by as version_created_by,
-            a.created_by as agent_created_by`;
+            a.created_by as agent_created_by,
+            (select o.settings->'atendimento_ia' from organizations o where o.id = a.organization_id) as org_atendimento_ia`;
 
 /** Mapeamento Row (snake_case do banco) → PublishedAgentConfig, compartilhado
  * pelas duas variantes de loader (por channel_session e por agent id). */
@@ -218,6 +232,9 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
         // O banco moveu o default; estes tres sitios de codigo ficaram para tras e venciam o banco, porque quem corta pelo limiar e o TypeScript.
         0.4;
 
+  // Nunca lança: valor malformado no jsonb da empresa cai em "como era antes".
+  const empresa = lerAtendimentoAutomatico({ atendimento_ia: r.org_atendimento_ia });
+
   return {
     operationMode: r.operation_mode,
     pausedAt: r.paused_at,
@@ -240,7 +257,8 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     splitMaxChars: r.split_max_chars,
     inboundDebounceMs: r.inbound_debounce_ms ?? null,
     replyMinIntervalMs: r.reply_min_interval_ms ?? null,
-    multimodalInput: r.multimodal_input,
+    atendimentoDaEmpresa: empresa,
+    multimodalInput: r.multimodal_input && empresa.midia,
     casesEnabled: r.cases_enabled,
     followup: r.followup,
     toolIds: r.tool_ids ?? [],

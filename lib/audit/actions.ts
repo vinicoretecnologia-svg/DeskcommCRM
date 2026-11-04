@@ -1028,6 +1028,9 @@ export const AUDIT_ACTIONS = [
   // valor da venda e o telefone do cliente saírem para o provedor do canal.
   "conversions.report_via_channel_updated",
   "calls.block_incoming_updated",
+  // "Atendimento automático" (Configurações › Atendimento): espera, pausa e
+  // leitura de áudio/foto da empresa. Metadata = só o que foi mexido.
+  "atendimento.automatico_updated",
 
   // CRM B2B fase 1 — companies / people / import (migration 0239)
   "companies.created",

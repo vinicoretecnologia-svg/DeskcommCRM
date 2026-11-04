@@ -28,6 +28,13 @@ import { AssinaturaForm } from "./_assinatura-form";
 import { ChannelRoutingForm } from "./_channels-form";
 import { AtendimentoForm } from "./_form";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { podeAdministrarEmpresa } from "@/lib/auth/pode-administrar-empresa";
+import { ESPERA_SUGERIDA_S, lerAtendimentoAutomatico, PAUSA_SUGERIDA_S } from "@/lib/organizacao/atendimento-automatico";
+import { bloqueioDeChamadasLigado, mensagemDeRecusaDeChamadas } from "@/lib/organizacao/bloqueio-de-chamadas";
+import { iaDeMidiaDisponivel } from "@/lib/organizacao/ia-de-midia-disponivel";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getWacallsClient } from "@/lib/wacalls/client";
+import { AtendimentoAutomatico } from "./_atendimentoAutomatico";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +65,24 @@ export default async function AtendimentoSettingsPage() {
   const assinatura = configAssinatura(settings);
   const assinaturaInicial = { humanos: assinatura.humanos, ia: assinatura.ia, nome_ia: assinatura.nomeIa };
 
+  // O cartão "Atendimento automático" só aparece para quem pode MUDAR as chaves
+  // (administrador da empresa): mostrar interruptor que só devolve "sem
+  // permissão" é ruído. Chave nunca mexida aparece como o sistema já se comporta:
+  // espera ligada no padrão da instalação, pausa desligada, mídia ligada.
+  const podeMudar = podeAdministrarEmpresa(user, activeOrg);
+  const auto = lerAtendimentoAutomatico(data?.settings);
+  const atendimentoAutomaticoInicial = podeMudar
+    ? {
+        bloqueio: bloqueioDeChamadasLigado(data?.settings),
+        mensagem: mensagemDeRecusaDeChamadas(data?.settings) ?? "",
+        espera: auto.espera ?? { ligada: true, segundos: ESPERA_SUGERIDA_S },
+        pausa: auto.pausa ?? { ligada: false, segundos: PAUSA_SUGERIDA_S },
+        midia: auto.midia,
+        midiaComChave: await iaDeMidiaDisponivel(createAdminClient(), activeOrg.orgId, data?.settings),
+        vozInstalada: getWacallsClient() !== null,
+      }
+    : null;
+
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-6">
       <header>
@@ -71,6 +96,8 @@ export default async function AtendimentoSettingsPage() {
           )}
         </p>
       </header>
+
+      {atendimentoAutomaticoInicial && <AtendimentoAutomatico inicial={atendimentoAutomaticoInicial} />}
 
       <AtendimentoForm
         initial={{ ...routing, visibility_mode: settings.visibility_mode ?? DEFAULT_VISIBILITY_MODE }}

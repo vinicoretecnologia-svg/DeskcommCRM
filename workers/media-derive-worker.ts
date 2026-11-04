@@ -29,6 +29,7 @@ import { env } from "@/lib/env";
 import type { EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
 import { deriveMediaText, type DeriveDeps } from "@/lib/messaging/media/derive";
 import { MARCADOR_NAO_LIDA, TIPOS_DERIVAVEIS } from "@/lib/messaging/media/derivable";
+import { lerAtendimentoAutomatico } from "@/lib/organizacao/atendimento-automatico";
 import { deriveVideoText } from "@/lib/messaging/media/video-derive";
 import {
   decidirTranscricao,
@@ -130,6 +131,20 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
   if (!msg.media_storage_path) return markSkipped("no media");
   if (msg.media_derived_status === "ready") return { consumer_key, status: "skipped", detail: "already derived" };
   if (!TIPOS_DERIVAVEIS.has(msg.type)) return { consumer_key, status: "skipped", detail: `type ${msg.type}` };
+  // "Entender áudios e fotos" (Configurações › Atendimento): a empresa que
+  // desligou a chave não paga transcrição nem visão. Grava `skipped` (terminal)
+  // para o turno não esperar por uma leitura que a empresa dispensou. Falha ao
+  // ler a chave NÃO desliga: sem resposta, vale o comportamento de sempre.
+  if (msg.type === "audio" || msg.type === "image") {
+    const { data: empresa } = await admin
+      .from("organizations")
+      .select("settings")
+      .eq("id", row.organization_id)
+      .maybeSingle();
+    if (!lerAtendimentoAutomatico((empresa as { settings?: unknown } | null)?.settings).midia) {
+      return markSkipped("leitura_desligada_pela_empresa");
+    }
+  }
   // Vídeo é opt-in (custo: ffmpeg + N chamadas de visão): só deriva se algum agente
   // publicado da org tem video_frames_enabled=true (flag da migration 0058).
   if (msg.type === "video") {

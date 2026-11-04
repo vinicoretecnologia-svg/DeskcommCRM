@@ -19,12 +19,8 @@ import { loadConversationAgentConfig } from '../../agent/agent-config';
 import { insertInboxItem } from '../../db/repository';
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
-import { decidirRajada, debounceEfetivo } from './debounce';
-import {
-  intervaloEfetivo,
-  runAfterComIntervalo,
-  ultimaRespostaDaIa,
-} from './intervalo-entre-respostas';
+import { decidirRajada } from './debounce';
+import { runAfterComIntervalo, ultimaRespostaDaIa } from './intervalo-entre-respostas';
 import { avisoDeEventoMorto, IA_QUE_NAO_RESPONDEU } from '@/lib/event-log/aviso-de-evento-morto';
 import { canalDesativado } from '@/lib/channels/desativado';
 import { TIPOS_DERIVAVEIS, DERIVACAO_TERMINADA } from '@/lib/messaging/media/derivable';
@@ -32,6 +28,7 @@ import { haQuemAtendaASessao } from '@/lib/ai/agents/quem-atende-a-sessao';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
 import { deveCederTurnoAoRetorno } from '@/lib/followup/ceder-turno-ao-retorno';
 import { ehOperante } from '@/lib/organizacao/operante';
+import { ajustesEfetivos } from './ajustes-efetivos';
 
 const DRAIN_CONSUMER = 'agent-engine';
 
@@ -237,11 +234,9 @@ async function ajustesDoAgenteDoEvento(
       p.conversation_id,
       p.channel_session_id,
     );
-    return {
-      debounceMs: debounceEfetivo(agentConfig?.inboundDebounceMs ?? null, padraoInstalacao),
-      // O intervalo entre respostas vem da MESMA versão do agente (mesma consulta).
-      intervaloEntreRespostasMs: intervaloEfetivo(agentConfig?.replyMinIntervalMs ?? null),
-    };
+    // O painel da EMPRESA (Configurações › Atendimento) vence o campo do agente
+    // quando foi mexido; a ordem inteira está em ./ajustes-efetivos.ts.
+    return ajustesEfetivos(agentConfig, padraoInstalacao);
   } catch (err) {
     log.warn('drain: ajustes do agente não resolveram — usando a janela da instalação, sem intervalo', {
       event_id: event.id,

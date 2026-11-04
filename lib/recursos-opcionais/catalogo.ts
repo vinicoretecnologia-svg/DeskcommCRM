@@ -545,7 +545,7 @@ const DA_EMPRESA: RecursoOpcional[] = [
     nivel: "organizacao",
     padrao: "desligado",
     quemDecide: "admin",
-    href: "/app/settings/security",
+    href: "/app/settings/atendimento",
     ler: peloSettings(bloqueioDeChamadasLigado),
   },
   {
