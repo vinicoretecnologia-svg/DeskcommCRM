@@ -9,6 +9,7 @@ import { ok } from "@/lib/api/wrappers";
 import { loadAuthUser } from "@/lib/auth/server";
 import { orgAtivaDaApi } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
+import { listarSessoesDeVoz } from "@/lib/wacalls/session";
 
 export const dynamic = "force-dynamic";
 
@@ -23,28 +24,32 @@ export async function GET(): Promise<Response> {
   if (!activeOrg) return new Response(null, { status: 403 });
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("channel_sessions")
-    .select("id, status, wacalls_jid, wacalls_paired_at")
-    .eq("organization_id", activeOrg.orgId)
-    .eq("provider", "wacalls")
-    .is("archived_at", null)
-    .maybeSingle();
-
-  const row = data as {
-    id: string;
-    status: string;
-    wacalls_jid: string | null;
-    wacalls_paired_at: string | null;
-  } | null;
+  // Uma linha de voz por número de mensagem (migration 9105). Os campos de topo
+  // seguem existindo para quem ainda lê o formato antigo, e dizem "alguma voz":
+  // a linha antiga (sem vínculo) tem prioridade, senão a primeira pareada.
+  const linhas = await listarSessoesDeVoz(supabase, activeOrg.orgId);
+  const row =
+    linhas.find((l) => l.voice_for_channel_session_id === null) ??
+    linhas.find((l) => !!l.wacalls_paired_at) ??
+    linhas[0] ??
+    null;
 
   return ok(
     {
-      configured: !!row,
+      configured: linhas.length > 0,
       channelSessionId: row?.id ?? null,
       status: row?.status ?? null,
-      paired: !!row?.wacalls_paired_at,
+      paired: linhas.some((l) => !!l.wacalls_paired_at),
       jid: row?.wacalls_jid ?? null,
+      // Estado por número: é o que o botão "Chamar" e a tela de Conexões leem.
+      // `numeroDeMensagem` null = voz da organização inteira (pareamento antigo).
+      sessions: linhas.map((l) => ({
+        id: l.id,
+        numeroDeMensagem: l.voice_for_channel_session_id,
+        status: l.status,
+        paired: !!l.wacalls_paired_at,
+        jid: l.wacalls_jid,
+      })),
     },
     { requestId },
   );

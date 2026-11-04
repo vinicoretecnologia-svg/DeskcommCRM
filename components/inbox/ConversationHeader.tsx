@@ -319,7 +319,7 @@ export function ConversationHeader({
         {/* A chamada usa o telefone da ficha, mesmo quando o contato chegou por
             outro canal. Grupos não representam uma pessoa para ligar. */}
         {!conversation.is_group && c?.id && (
-          <DialButton contactId={c.id} hasPhone={!!c.phone_number} />
+          <DialButton contactId={c.id} hasPhone={!!c.phone_number} channelSessionId={conversation.channel_session_id} />
         )}
         {/* Videochamada (#2440): sem JITSI_SERVER_URL este botão não renderiza,
             então ele não ocupa lugar nem na instalação que não oferece a feature.

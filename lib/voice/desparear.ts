@@ -71,54 +71,63 @@ export async function despareaVoz(
   supabase: SupabaseClient<any>,
   wacalls: WacallsClient,
   organizationId: string,
+  /**
+   * Uma só linha de voz (o `id` dela em `channel_sessions`): desconecta ESSE
+   * número e deixa os outros. Sem isto, desparea TODOS os aparelhos de voz da
+   * organização — é o que "desligar a chamada de voz" precisa (migration 9105).
+   */
+  linhaDeVoz?: string | null,
 ): Promise<ResultadoDoDesparear> {
-  const { data } = await supabase
+  let consulta = supabase
     .from("channel_sessions")
     .select("id, wacalls_session_id")
     .eq("organization_id", organizationId)
     .eq("provider", "wacalls")
-    .is("archived_at", null)
-    .maybeSingle();
+    .is("archived_at", null);
+  if (linhaDeVoz) consulta = consulta.eq("id", linhaDeVoz);
+  const { data } = await consulta;
 
-  const linha = data as { id: string; wacalls_session_id: string | null } | null;
+  const linhas = (data ?? []) as Array<{ id: string; wacalls_session_id: string | null }>;
 
   // Idempotente por construção: desligar duas vezes, ou desligar sem nunca ter
   // pareado, não pode virar erro na cara de quem está justamente tentando
   // reduzir risco.
-  if (!linha) return { desapareado: false, channelSessionId: null };
+  if (linhas.length === 0) return { desapareado: false, channelSessionId: null };
 
-  const sessaoNoWacalls = linha.wacalls_session_id;
-  if (sessaoNoWacalls) {
-    // Erro daqui sobe e o chamador NÃO arquiva. Engolir seria dizer
-    // "desconectado" com o aparelho vinculado.
-    //
-    // A ÚNICA exceção é o 404 "no session": o WaCalls não conhece a sessão —
-    // volume perdido, serviço reinstalado, ou `Restore` descartando-a no boot.
-    // Sem sessão lá não há aparelho vinculado por ela, e recusar deixava a
-    // organização presa: o pareamento responde 409 para o banco que diz
-    // "pareado", e este caminho, a única saída, devolvia 502 para sempre.
-    await desligarSessaoDeVozNoTransporte(wacalls, sessaoNoWacalls);
+  for (const linha of linhas) {
+    const sessaoNoWacalls = linha.wacalls_session_id;
+    if (sessaoNoWacalls) {
+      // Erro daqui sobe e o chamador NÃO arquiva. Engolir seria dizer
+      // "desconectado" com o aparelho vinculado.
+      //
+      // A ÚNICA exceção é o 404 "no session": o WaCalls não conhece a sessão —
+      // volume perdido, serviço reinstalado, ou `Restore` descartando-a no boot.
+      // Sem sessão lá não há aparelho vinculado por ela, e recusar deixava a
+      // organização presa: o pareamento responde 409 para o banco que diz
+      // "pareado", e este caminho, a única saída, devolvia 502 para sempre.
+      await desligarSessaoDeVozNoTransporte(wacalls, sessaoNoWacalls);
+    }
+
+    const agora = new Date().toISOString();
+    const { error } = await supabase
+      .from("channel_sessions")
+      .update({
+        archived_at: agora,
+        status: "STOPPED",
+        last_status_change_at: agora,
+        // A identidade do lado do WaCalls deixou de existir; guardá-la faria um
+        // pareamento futuro tentar reusar um id que o processo não conhece mais.
+        wacalls_session_id: null,
+        wacalls_paired_at: null,
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", linha.id);
+
+    if (error) throw new Error(`channel_sessions archive: ${error.message}`);
+
+    // Canal pausado e depois desligado: o aviso de pausa resolve junto (issue #2389).
+    await fecharAvisoDePausaDoCanalArquivado(supabase, { id: linha.id, organization_id: organizationId });
   }
 
-  const agora = new Date().toISOString();
-  const { error } = await supabase
-    .from("channel_sessions")
-    .update({
-      archived_at: agora,
-      status: "STOPPED",
-      last_status_change_at: agora,
-      // A identidade do lado do WaCalls deixou de existir; guardá-la faria um
-      // pareamento futuro tentar reusar um id que o processo não conhece mais.
-      wacalls_session_id: null,
-      wacalls_paired_at: null,
-    })
-    .eq("organization_id", organizationId)
-    .eq("id", linha.id);
-
-  if (error) throw new Error(`channel_sessions archive: ${error.message}`);
-
-  // Canal pausado e depois desligado: o aviso de pausa resolve junto (issue #2389).
-  await fecharAvisoDePausaDoCanalArquivado(supabase, { id: linha.id, organization_id: organizationId });
-
-  return { desapareado: true, channelSessionId: linha.id };
+  return { desapareado: true, channelSessionId: linhas[0]!.id };
 }

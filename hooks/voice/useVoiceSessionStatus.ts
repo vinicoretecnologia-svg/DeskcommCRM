@@ -2,13 +2,17 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api/client";
+import type { VozPareada } from "@/lib/voice/voz-do-numero";
 
 interface VoiceSessionStatus {
   configured: boolean;
   channelSessionId: string | null;
   status: string | null;
+  /** Há ALGUMA voz pareada na organização. Por número: `sessions`. */
   paired: boolean;
   jid: string | null;
+  /** Uma voz por número de mensagem (migration 9105). Ausente em servidor antigo. */
+  sessions?: VozPareada[];
 }
 
 /** Estado do pareamento de chamada de voz da org — decide se o discador aparece. */
