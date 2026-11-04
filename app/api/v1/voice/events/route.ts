@@ -31,7 +31,7 @@ import QRCode from "qrcode";
 
 import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
-import { resolveWacallsSession } from "@/lib/wacalls/session";
+import { listarSessoesDeVoz } from "@/lib/wacalls/session";
 import { getWacallsClient } from "@/lib/wacalls/client";
 import { nomeDaSessaoDeVoz } from "@/lib/wacalls/nome-da-sessao";
 import { env } from "@/lib/env";
@@ -42,8 +42,17 @@ function sseLine(data: unknown): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(req: Request): Promise<Response> {
   const requestId = randomUUID();
+
+  // `?channelSessionId=` = o número de mensagem cuja voz está pareando (migration
+  // 9105). Sem ele, a voz antiga da organização. Só serve para ESCOLHER o nome
+  // esperado e o id gravado: nada além disto é lido do parâmetro.
+  const pedido = new URL(req.url).searchParams.get("channelSessionId");
+  if (pedido !== null && !/^[0-9a-f-]{36}$/i.test(pedido)) {
+    return new Response(null, { status: 400 });
+  }
+  const numeroDeMensagem = pedido;
 
   const authz = await requireRole("admin", {
     requestId,
@@ -58,11 +67,15 @@ export async function GET(): Promise<Response> {
   }
 
   const supabase = await createClient();
-  const session = await resolveWacallsSession(supabase, activeOrg.orgId);
+  // EXATAMENTE a linha deste número (ou a antiga, sem vínculo): o QR de um
+  // número nunca pode ir para a tela de outro. Por isso não usa o resolvedor, que
+  // cai no legado quando o número não tem voz própria.
+  const linhas = await listarSessoesDeVoz(supabase, activeOrg.orgId);
+  const daqui = linhas.find((l) => l.voice_for_channel_session_id === numeroDeMensagem);
   // Sem sessão ainda não é erro: é o primeiro pareamento, e a stream precisa
   // estar aberta antes de a sessão existir. O nome fecha a lacuna.
-  const nossas = new Set<string>(session ? [session.wacallsSessionId] : []);
-  const nome = nomeDaSessaoDeVoz(activeOrg.orgId);
+  const nossas = new Set<string>(daqui?.wacalls_session_id ? [daqui.wacalls_session_id] : []);
+  const nome = nomeDaSessaoDeVoz(activeOrg.orgId, numeroDeMensagem);
   // A sessão cujo QR está na tela agora. "Venceu" só vale para ELA: o
   // pareamento apaga a sessão anterior antes de criar a nova, e o WaCalls pode
   // emitir `logged_out` para a que está sendo apagada — encerrar a stream por
@@ -71,7 +84,7 @@ export async function GET(): Promise<Response> {
 
   const upstream = await fetch(`${env.WACALLS_API_BASE_URL}/api/events`, {
     headers: {
-      "X-Client-Id": `web_${activeOrg.orgId.slice(0, 8)}`,
+      "X-Client-Id": `web_${activeOrg.orgId.slice(0, 8)}${numeroDeMensagem ? `_${numeroDeMensagem.slice(0, 8)}` : ""}`,
       Authorization: `Bearer ${env.WACALLS_API_TOKEN.trim()}`,
     },
   });

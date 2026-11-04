@@ -67,7 +67,14 @@ export const dynamic = "force-dynamic";
  * normal — e o Zod descarta a chave, em vez de mantê-la como controle
  * decorativo.
  */
-const PareamentoSchema = z.object({});
+const PareamentoSchema = z.object({
+  /**
+   * O número de MENSAGEM que esta voz vai atender (migration 9105). Sem ele, o
+   * pareamento é o antigo: a voz da organização inteira. É re-validado contra o
+   * banco, escopado pela organização — o uuid do corpo nunca é confiado.
+   */
+  channelSessionId: z.string().uuid().optional(),
+});
 
 /**
  * Apaga a sessão que nunca pareou, tolerando que o WaCalls já não a conheça:
@@ -105,12 +112,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!authz.ok) return authz.response;
   const { user, org: activeOrg } = authz;
 
+  let numeroDeMensagem: string | null = null;
   try {
     const texto = await request.text();
     const corpo = PareamentoSchema.safeParse(texto ? JSON.parse(texto) : {});
     if (!corpo.success) {
       return fail("invalid_request", "Opções de pareamento inválidas.", 400, { requestId });
     }
+    numeroDeMensagem = corpo.data.channelSessionId ?? null;
   } catch {
     return fail("invalid_request", "Corpo da solicitação inválido.", 400, { requestId });
   }
@@ -148,13 +157,35 @@ export async function POST(request: Request): Promise<Response> {
   });
   if (vozDesligada) return vozDesligada;
 
-  const { data: existingRaw } = await supabase
+  // O número de mensagem pedido tem de existir NESTA organização, vivo e ser um
+  // canal de mensagem (nunca outra linha de voz). Sem isto, um uuid de outra
+  // empresa ou de um canal arquivado criaria uma voz que nunca será usada.
+  if (numeroDeMensagem) {
+    const { data: numero } = await supabase
+      .from("channel_sessions")
+      .select("id")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", numeroDeMensagem)
+      .neq("provider", "wacalls")
+      .is("archived_at", null)
+      .maybeSingle();
+    if (!numero) {
+      return fail("not_found", "Número de WhatsApp não encontrado nesta organização.", 404, { requestId });
+    }
+  }
+
+  // Uma linha de voz por número (migration 9105). Sem número: a voz antiga da
+  // organização, a que não tem vínculo.
+  let consultaExistente = supabase
     .from("channel_sessions")
     .select("id, wacalls_session_id, wacalls_paired_at")
     .eq("organization_id", activeOrg.orgId)
     .eq("provider", "wacalls")
-    .is("archived_at", null)
-    .maybeSingle();
+    .is("archived_at", null);
+  consultaExistente = numeroDeMensagem
+    ? consultaExistente.eq("voice_for_channel_session_id", numeroDeMensagem)
+    : consultaExistente.is("voice_for_channel_session_id", null);
+  const { data: existingRaw } = await consultaExistente.maybeSingle();
   const existing = existingRaw as {
     id: string;
     wacalls_session_id: string | null;
@@ -168,7 +199,7 @@ export async function POST(request: Request): Promise<Response> {
     return jaPareada(requestId);
   }
 
-  const nome = nomeDaSessaoDeVoz(activeOrg.orgId);
+  const nome = nomeDaSessaoDeVoz(activeOrg.orgId, numeroDeMensagem);
   // A sessão criada NESTA requisição, enquanto o banco ainda não a conhece.
   // Se o registro falhar, ela é desfeita no `catch` — sem isto ficava no
   // WaCalls uma sessão com o nome desta organização em laço de QR, que o relay
@@ -207,6 +238,7 @@ export async function POST(request: Request): Promise<Response> {
         : await supabase.from("channel_sessions").insert({
             organization_id: activeOrg.orgId,
             provider: "wacalls",
+            voice_for_channel_session_id: numeroDeMensagem,
             webhook_secret_encrypted: Buffer.from([0]),
             ...vinculo,
           });
@@ -254,6 +286,7 @@ export async function POST(request: Request): Promise<Response> {
         .insert({
           organization_id: activeOrg.orgId,
           provider: "wacalls",
+          voice_for_channel_session_id: numeroDeMensagem,
           wacalls_session_id: wacallsSessionId,
           status: "STARTING",
           webhook_secret_encrypted: Buffer.from([0]),
@@ -273,7 +306,11 @@ export async function POST(request: Request): Promise<Response> {
       resourceType: "channel_session",
       resourceId: channelSessionId,
       requestId,
-      metadata: { wacalls_session_id: wacallsSessionId, descartadas },
+      metadata: {
+        wacalls_session_id: wacallsSessionId,
+        descartadas,
+        ...(numeroDeMensagem ? { voice_for_channel_session_id: numeroDeMensagem } : {}),
+      },
     });
 
     return ok({ channelSessionId, wacallsSessionId }, { requestId });

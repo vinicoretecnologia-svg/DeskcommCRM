@@ -14,7 +14,13 @@
  * o relay aceita QR e "pareado", e dois tenants com o mesmo prefixo de 32 bits
  * receberiam o QR um do outro. Sessões antigas (`org_XXXXXXXX`) seguem
  * reconhecidas pelo id gravado em `channel_sessions`, nunca pelo nome.
+ *
+ * ═══ UM NOME POR NÚMERO (migration 9105) ═══
+ *
+ * Com `numeroDeMensagem`, o nome carrega também o número de mensagem que a voz
+ * atende (`org_<org>_ch_<canal>`): duas sessões da mesma empresa pareando ao
+ * mesmo tempo não podem receber o QR uma da outra. Sem ele, o nome legado.
  */
-export function nomeDaSessaoDeVoz(organizationId: string): string {
-  return `org_${organizationId}`;
+export function nomeDaSessaoDeVoz(organizationId: string, numeroDeMensagem?: string | null): string {
+  return numeroDeMensagem ? `org_${organizationId}_ch_${numeroDeMensagem}` : `org_${organizationId}`;
 }

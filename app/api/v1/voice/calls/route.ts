@@ -21,7 +21,16 @@ import { resolveWacallsSession } from "@/lib/wacalls/session";
 
 export const dynamic = "force-dynamic";
 
-const bodySchema = z.object({ contactId: z.string().uuid() });
+const bodySchema = z.object({
+  contactId: z.string().uuid(),
+  /**
+   * O número de mensagem da conversa em que o atendente clicou (migration 9105).
+   * A ligação sai pela voz DESTE número. Não é confiado: a busca é escopada pela
+   * organização e, sem voz pareada para ele, a resposta é 409 — nunca o aparelho
+   * de outro número.
+   */
+  channelSessionId: z.string().uuid().optional(),
+});
 
 /**
  * As colunas que o painel (`VoiceCallRow`, `hooks/voice/useVoiceCallSession.ts`)
@@ -69,11 +78,13 @@ export async function POST(req: Request): Promise<Response> {
   });
   if (vozDesligada) return vozDesligada;
 
-  const session = await resolveWacallsSession(supabase, activeOrg.orgId);
+  const session = await resolveWacallsSession(supabase, activeOrg.orgId, parsed.data.channelSessionId);
   if (!session) {
     return fail(
       "wacalls_not_paired",
-      "Chamada de voz ainda não foi pareada para esta organização. Configure em Configurações › Canais.",
+      parsed.data.channelSessionId
+        ? "Este número ainda não tem chamada de voz pareada. Pareie em Conexões › Chamada de voz."
+        : "Chamada de voz ainda não foi pareada para esta organização. Configure em Configurações › Canais.",
       409,
       { requestId },
     );
