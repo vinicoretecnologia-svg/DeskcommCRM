@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { channelLabel } from "@/hooks/channels/useChannelSessions";
+import { channelLabel, type ChannelSession } from "@/hooks/channels/useChannelSessions";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import type { VozPareada } from "@/lib/voice/voz-do-numero";
@@ -59,31 +59,12 @@ function errMsg(err: unknown, fallback: string, t: (texto: string) => string): s
  * tela cai no cartão único de sempre em vez de quebrar.
  */
 function numerosDaResposta(dados: unknown, t: (texto: string) => string): NumeroDaEmpresa[] {
+  // A rota só lista canais de MENSAGEM (`PROVIDERS_DE_MENSAGEM`): a linha de voz
+  // nunca vem aqui, então a tela não precisa — nem deve — nomear provedor.
   if (!Array.isArray(dados)) return [];
-  const numeros: NumeroDaEmpresa[] = [];
-  for (const item of dados) {
-    if (!item || typeof item !== "object") continue;
-    const c = item as {
-      id?: unknown;
-      provider?: unknown;
-      display_name?: unknown;
-      phone_number?: unknown;
-      waha_session_name?: unknown;
-    };
-    if (typeof c.id !== "string" || c.provider === "wacalls") continue;
-    numeros.push({
-      id: c.id,
-      rotulo: channelLabel(
-        {
-          display_name: typeof c.display_name === "string" ? c.display_name : null,
-          phone_number: typeof c.phone_number === "string" ? c.phone_number : null,
-          waha_session_name: typeof c.waha_session_name === "string" ? c.waha_session_name : null,
-        },
-        t,
-      ),
-    });
-  }
-  return numeros;
+  return (dados as ChannelSession[])
+    .filter((c) => c && typeof c.id === "string")
+    .map((c) => ({ id: c.id, rotulo: channelLabel(c, t) }));
 }
 
 function CartaoDaVoz({
