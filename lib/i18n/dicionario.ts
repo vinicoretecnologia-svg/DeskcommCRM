@@ -15746,6 +15746,27 @@ export const DICIONARIO: Traducoes = {
   "Desconectar conta": { es: "Desconectar cuenta" },
   "Desconectar esta conta?": { es: "¿Desconectar esta cuenta?" },
   "Remover do atendimento?": { es: "¿Quitar de la atención?" },
+  // Conexão direta das redes sociais (#965) — cartão "Instagram e Messenger".
+  "Instagram e Messenger": { es: "Instagram y Messenger" },
+  "Entrar com Facebook": { es: "Entrar con Facebook" },
+  "Entre com o Facebook e escolha a Página da empresa. As mensagens do Messenger e do Direct do Instagram ligado a ela entram no atendimento.":
+    { es: "Entra con Facebook y elige la Página de la empresa. Los mensajes de Messenger y del Direct del Instagram vinculado a ella entran en la atención." },
+  "Contas ligadas:": { es: "Cuentas conectadas:" },
+  "As novas mensagens já entram no atendimento.": { es: "Los mensajes nuevos ya entran en la atención." },
+  "Conta removida do atendimento. As conversas continuam no CRM.": { es: "Cuenta quitada de la atención. Las conversaciones siguen en el CRM." },
+  "A conexão direta ainda não está disponível nesta instalação. Fale com quem administra o sistema.":
+    { es: "La conexión directa aún no está disponible en esta instalación. Habla con quien administra el sistema." },
+  "A IA começa pausada em cada conta nova, para não responder junto com outra automação.":
+    { es: "La IA empieza en pausa en cada cuenta nueva, para no responder junto con otra automatización." },
+  "A entrada com o Facebook foi cancelada. Nenhuma conta foi alterada.": { es: "La entrada con Facebook fue cancelada. Ninguna cuenta fue modificada." },
+  "Nenhuma Página foi autorizada. Entre de novo e marque a Página que atende os clientes.":
+    { es: "Ninguna Página fue autorizada. Entra de nuevo y marca la Página que atiende a los clientes." },
+  "Esta Página ou conta do Instagram já está ligada a outra empresa neste sistema.":
+    { es: "Esta Página o cuenta de Instagram ya está conectada a otra empresa en este sistema." },
+  "O plano chegou ao limite de canais. Remova um canal ou mude de plano para ligar esta conta.":
+    { es: "El plan llegó al límite de canales. Quita un canal o cambia de plan para conectar esta cuenta." },
+  "Não foi possível concluir a conexão. Tente entrar com o Facebook de novo.":
+    { es: "No fue posible completar la conexión. Intenta entrar con Facebook de nuevo." },
   "As mensagens param de chegar e a conta sai do provedor. Para usar de novo, será preciso autorizar a conta outra vez. As conversas já recebidas continuam no CRM.": { es: "Los mensajes dejan de llegar y la cuenta sale del proveedor. Para usarla de nuevo, tendrás que autorizar la cuenta otra vez. Las conversaciones ya recibidas siguen en el CRM." },
   "As mensagens desta conta param de chegar no atendimento. A conta continua vinculada e pode voltar a receber depois. As conversas já recebidas continuam no CRM.": { es: "Los mensajes de esta cuenta dejan de llegar a la atención. La cuenta sigue vinculada y puede volver a recibir después. Las conversaciones ya recibidas siguen en el CRM." },
   "Conta removida do atendimento.": { es: "Cuenta quitada de la atención." },

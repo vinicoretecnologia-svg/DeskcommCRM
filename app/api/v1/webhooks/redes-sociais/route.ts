@@ -25,7 +25,7 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest): Promise<Response> {
   const desafio = await desafioDaPortaDireta(new URL(req.url).searchParams);
-  if (desafio === null) return comIdDaRequisicao(new Response("forbidden", { status: 403 }), req);
+  if (desafio === null) return fail("forbidden", "verify_token_invalido", 403);
   return comIdDaRequisicao(
     new Response(desafio, { status: 200, headers: { "Content-Type": "text/plain" } }),
     req,
