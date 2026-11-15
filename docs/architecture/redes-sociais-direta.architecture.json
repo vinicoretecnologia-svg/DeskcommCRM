@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Conexão direta das redes sociais (Instagram Direct e Messenger)",
+    "subtitle": "Entrar com Facebook grava uma sessão por conta e assina o app na Página; o webhook único do app acha a sessão pela conta do evento; a resposta sai pela Página, dentro de 24h",
+    "output": "redes-sociais-direta.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "operador", "label": "Operação" },
+    { "id": "servidor", "label": "Servidor" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "plataforma", "label": "Graph API da plataforma" }
+  ],
+  "mainPath": ["cartao", "entrar", "dialogo", "retorno", "assinar", "sessao", "webhook", "entrada", "ingestao", "inbox", "resposta", "envio"],
+  "nodes": [
+    { "id": "cartao", "lane": "operador", "col": 1, "type": "frontend", "label": "Conexões › Redes sociais › Instagram e Messenger (ConexaoDiretaSocialClient) — botão só com META_APP_ID + META_SOCIAL_LOGIN_CONFIG_ID + segredo do app" },
+    { "id": "entrar", "lane": "servidor", "col": 2, "type": "route", "label": "GET /api/v1/channels/social/direta/entrar — admin; state assinado + cookie de vínculo" },
+    { "id": "dialogo", "lane": "plataforma", "col": 4, "type": "external", "label": "Login do Facebook para Empresas (config_id) — a pessoa escolhe as Páginas" },
+    { "id": "retorno", "lane": "servidor", "col": 2, "type": "route", "label": "GET …/direta/retorno — público no proxy; state + vínculo + nonce de uso único; troca do código (segredo no corpo)" },
+    { "id": "contas", "lane": "plataforma", "col": 4, "type": "external", "label": "me/accounts — Páginas com o token de cada uma e o Instagram ligado" },
+    { "id": "assinar", "lane": "plataforma", "col": 4, "type": "external", "label": "POST /{página}/subscribed_apps — messages, postbacks, echoes, deliveries, reads" },
+    { "id": "sessao", "lane": "banco", "col": 3, "type": "database", "label": "channel_sessions provider meta_social: conta, Página, token da Página cifrado; uma conta por conexão ativa (migration 9390)" },
+    { "id": "webhook", "lane": "plataforma", "col": 4, "type": "external", "label": "Webhook do app — objetos page e instagram, X-Hub-Signature-256" },
+    { "id": "entrada", "lane": "servidor", "col": 2, "type": "route", "label": "POST /api/v1/webhooks/redes-sociais → receberEntregaDaPortaDireta: assinatura, conta → sessão ativa, arquivo só com o recorte da conta" },
+    { "id": "ingestao", "lane": "servidor", "col": 2, "type": "service", "label": "eventosPorConta → SocialMessage → ingestZernioInbound; eco do próprio app descartado, eco humano = saída (pausa a IA)" },
+    { "id": "inbox", "lane": "banco", "col": 3, "type": "database", "label": "contacts.social_identity <rede>:<conta>:<pessoa>, conversations channel instagram/facebook, messages social:<conta>:<mid>" },
+    { "id": "resposta", "lane": "servidor", "col": 2, "type": "service", "label": "socialDiretaAdapter.send — janela de 24h pela cadeia before_send (freeformOutsideWindow false)" },
+    { "id": "envio", "lane": "plataforma", "col": 4, "type": "external", "label": "POST /{página}/messages, messaging_type RESPONSE, token no cabeçalho" },
+    { "id": "remover", "lane": "servidor", "col": 2, "type": "route", "label": "POST /api/v1/channels/social/direta {remove} — arquiva e apaga o token; auditado" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "cartao", "to": "entrar", "label": "Entrar com Facebook" },
+    { "id": "e2", "from": "entrar", "to": "dialogo", "label": "redirect com state" },
+    { "id": "e3", "from": "dialogo", "to": "retorno", "label": "code + state" },
+    { "id": "e4", "from": "retorno", "to": "contas", "label": "token do usuário (longa duração)" },
+    { "id": "e5", "from": "retorno", "to": "assinar", "label": "por Página, com o token dela" },
+    { "id": "e6", "from": "retorno", "to": "sessao", "label": "Messenger + Instagram; recusa conta ativa em outra organização" },
+    { "id": "e7", "from": "webhook", "to": "entrada", "label": "a plataforma entrega cada evento" },
+    { "id": "e8", "from": "entrada", "to": "sessao", "label": "acha a organização pela conta (entry.id)" },
+    { "id": "e9", "from": "entrada", "to": "ingestao", "label": "assinatura certa" },
+    { "id": "e10", "from": "ingestao", "to": "inbox", "label": "idempotente por external_id" },
+    { "id": "e11", "from": "inbox", "to": "resposta", "label": "atendente ou agente responde" },
+    { "id": "e12", "from": "resposta", "to": "envio", "label": "token decifrado por (organização, conta)" },
+    { "id": "e13", "from": "cartao", "to": "remover", "label": "Remover do atendimento" },
+    { "id": "e14", "from": "remover", "to": "sessao", "label": "archived_at, token nulo" }
+  ]
+}

@@ -225,6 +225,44 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     // Telegram não tem ponte, e `true` ofereceria uma chave que não envia nada.
     reportaConversao: false,
   },
+  /**
+   * A porta DIRETA das redes sociais (#965/#1320): Instagram Direct e
+   * Messenger da Página pela Graph API, sem intermediário.
+   *
+   * É a MESMA rede da linha `zernio_social` — o que a plataforma permite não
+   * muda com o encanamento —, então o perfil é o mesmo, com uma diferença
+   * medida na documentação da plataforma:
+   *
+   *  - `freeformOutsideWindow: false` — a política de mensagens do Messenger e
+   *    do Instagram só aceita resposta livre até 24h depois da última mensagem
+   *    da pessoa (`messaging_type: RESPONSE`); fora disso a Graph API recusa
+   *    (erro 10 / subcódigo 2018278). Não há modelo aprovado para reabrir.
+   *  - `voiceNote: "opus-only"` — a Graph API recebe o áudio por URL e não
+   *    converte nada; "server-convert" prometeria uma conversão que este
+   *    adapter não faz.
+   *  - `costPerMessage: false` — a resposta dentro da janela é gratuita.
+   */
+  meta_social: {
+    freeformOutsideWindow: false,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: 1000,
+    voiceNote: "opus-only",
+    groups: "none",
+    costPerMessage: false,
+    // Editar e reagir existem só parcialmente na plataforma (reação só no
+    // Instagram); este adapter não implementa nenhum dos dois.
+    alteraMensagemEnviada: false,
+    podeReagir: false,
+    transmissao: false,
+    // Nenhuma destas linhas conversa com um aparelho pareado.
+    phonebook: false,
+    // Status é do WhatsApp: não existe neste canal.
+    statusUpdates: false,
+    // A venda volta à Meta pela conversa de WhatsApp; aqui não há ponte.
+    reportaConversao: false,
+  },
 };
 
 /**
@@ -260,6 +298,23 @@ export const CHANNEL_PROVIDER_DATAFY: ChannelProvider = "datafy";
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 /** Bot do Telegram (Bot API, #3440) — canal de mensagem sem telefone. */
 export const CHANNEL_PROVIDER_TELEGRAM: ChannelProvider = "telegram";
+/** Porta direta das redes sociais (#965/#1320) — Instagram e Messenger sem intermediário. */
+export const CHANNEL_PROVIDER_SOCIAL_DIRETA: ChannelProvider = "meta_social";
+
+/**
+ * As linhas de `channel_sessions` que são REDE SOCIAL, por qualquer porta.
+ *
+ * Existe porque "é rede social?" era respondido comparando com UM provider
+ * (`CHANNEL_PROVIDER_SOCIAL`), e a porta direta é a segunda resposta certa à
+ * mesma pergunta. Quem filtra a lista de números por QR, ou fecha avisos de
+ * conta social, pergunta isto — e não qual porta é.
+ */
+export const PROVIDERS_DE_REDE_SOCIAL: readonly string[] = [CHANNEL_PROVIDER_SOCIAL, CHANNEL_PROVIDER_SOCIAL_DIRETA];
+
+/** `true` quando a linha é de rede social, por qualquer porta. */
+export function ehCanalDeRedeSocial(provider: string | null | undefined): boolean {
+  return PROVIDERS_DE_REDE_SOCIAL.includes(provider ?? "");
+}
 
 /**
  * O provider em que o NÚMERO é a conexão: pareado por QR, a linha só vira
@@ -295,6 +350,9 @@ export const PROVIDERS_DE_MENSAGEM = [
   // fala com quem o iniciou. `PROVIDERS_DE_TELEFONE` fica de fora de propósito,
   // e o motivo está lá embaixo.
   "telegram",
+  // Porta direta das redes sociais (#965): conversa, mas só com quem escreveu e
+  // não tem telefone — fica fora de `PROVIDERS_DE_TELEFONE` como a irmã social.
+  "meta_social",
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**
@@ -322,7 +380,10 @@ export const PROVIDERS_DE_TELEFONE = [
   "meta_cloud",
   "zernio",
   "datafy",
-] as const satisfies readonly Exclude<(typeof PROVIDERS_DE_MENSAGEM)[number], "zernio_social" | "telegram">[];
+] as const satisfies readonly Exclude<
+  (typeof PROVIDERS_DE_MENSAGEM)[number],
+  "zernio_social" | "telegram" | "meta_social"
+>[];
 
 /**
  * `true` quando a linha de `channel_sessions` é um canal de mensagem.

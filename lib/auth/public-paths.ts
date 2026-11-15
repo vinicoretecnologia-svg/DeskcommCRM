@@ -96,6 +96,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   // (`lib/plataformas-de-anuncio/google/estado.ts`), não da sessão — quem
   // volta do Google não tem, e não pode ter, o cookie.
   /^\/api\/v1\/plataformas-de-anuncio\/google\/callback$/,
+  // Volta do "Entrar com Facebook" da conexão direta das redes sociais. Mesma
+  // natureza: a identidade vem do `state` assinado
+  // (`lib/channels/social/direta/estado.ts`) + o cookie de vínculo — o cookie
+  // de sessão é Strict e não viaja na volta da plataforma.
+  /^\/api\/v1\/channels\/social\/direta\/retorno$/,
   /^\/api\/v1\/integrations\/nuvemshop\/callback$/,
   /^\/api\/internal\//,
   /^\/api\/mcp(\/.*)?$/,

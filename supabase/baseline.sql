@@ -9584,15 +9584,23 @@ alter table public.channel_sessions
   add column if not exists telegram_bot_id text,
   add column if not exists telegram_token_encrypted bytea;
 
+-- porta direta das redes sociais (migration 9390, #965/#1320) — a conta
+-- (Página ou Instagram), a Página que fala por ela e o token da Página cifrado.
+-- Nullable e antes das constraints abaixo, que as referenciam.
+alter table public.channel_sessions
+  add column if not exists meta_social_account_id text,
+  add column if not exists meta_social_page_id text,
+  add column if not exists meta_social_token_encrypted bytea;
+
 alter table public.channel_sessions
   drop constraint if exists channel_sessions_provider_check;
 
 alter table public.channel_sessions
   add constraint channel_sessions_provider_check
   -- 'wacalls' (0233), 'zernio_social' (0368), 'datafy' (0387) e 'telegram'
-  -- (9342) somados AQUI — UM bloco só por constraint (não duplicar drop+add
-  -- por migration).
-  check (provider = any (array['waha'::text, 'meta_cloud'::text, 'zernio'::text, 'wacalls'::text, 'zernio_social'::text, 'datafy'::text, 'telegram'::text]));
+  -- (9342) e 'meta_social' (9390) somados AQUI — UM bloco só por constraint
+  -- (não duplicar drop+add por migration).
+  check (provider = any (array['waha'::text, 'meta_cloud'::text, 'zernio'::text, 'wacalls'::text, 'zernio_social'::text, 'datafy'::text, 'telegram'::text, 'meta_social'::text]));
 
 alter table public.channel_sessions
   drop constraint if exists channel_sessions_provider_ref_check;
@@ -9607,7 +9615,9 @@ alter table public.channel_sessions
     (provider = 'wacalls'    and wacalls_session_id    is not null) or
     (provider = 'datafy'     and datafy_phone_number_id is not null) or
     -- Bot do Telegram (migration 9342): endereça pelo id do robô.
-    (provider = 'telegram'   and telegram_bot_id      is not null)
+    (provider = 'telegram'   and telegram_bot_id      is not null) or
+    -- Porta direta das redes sociais (migration 9390): endereça pela conta.
+    (provider = 'meta_social' and meta_social_account_id is not null)
   );
 
 comment on column public.channel_sessions.zernio_account_id is
@@ -14788,7 +14798,10 @@ alter table public.webhook_events_log
     -- (migration 9342, #3486) o robô do Telegram. Sem ele aqui, todo update do
     -- robô logava "não consegui abrir a linha" e o corpo cru não era guardado
     -- (medido na prova de tela). O corpo do update não carrega o token.
-    'telegram'
+    'telegram',
+    -- (migration 9390) a porta direta das redes sociais: a entrega da
+    -- plataforma é assinada pelo segredo do app e não carrega token.
+    'meta_social'
   ));
 
 -- ---- a marca da instalação sai do .env e vai para o banco (migration 0155) ----
@@ -83073,3 +83086,32 @@ begin
   end loop;
 end
 $fichas_absorvidas$;
+
+
+-- ---- porta direta das redes sociais (migration 9390) ----
+-- As colunas e o vocabulário de `channel_sessions.provider` e de
+-- `webhook_events_log.provider` foram somados aos BLOCOS ÚNICOS lá em cima
+-- (procure `meta_social`), que é a regra de
+-- `tests/unit/baseline-constraint-reconstruida.test.ts`. Aqui fica o que não
+-- tem bloco próprio: os comentários e o índice de uma conta por conexão ativa.
+-- O webhook da plataforma é um só para a instalação e acha a sessão pela conta
+-- do evento: duas sessões ativas com a mesma conta entregariam a conversa de
+-- uma organização à outra. Idempotente.
+do $$
+begin
+  if to_regclass('public.channel_sessions') is not null then
+    comment on column public.channel_sessions.meta_social_account_id is
+      'Conta na porta direta das redes sociais: id da Página (Messenger) ou da conta do Instagram. É o sessionRef e o entry.id do webhook.';
+    comment on column public.channel_sessions.meta_social_page_id is
+      'Página que fala pela conta da porta direta (no Messenger, a própria conta). O envio sai por POST /{página}/messages.';
+    comment on column public.channel_sessions.meta_social_token_encrypted is
+      'Token da Página cifrado por fn_encrypt_oauth. Nunca volta para a tela nem para o log.';
+  end if;
+end
+$$;
+
+create unique index if not exists channel_sessions_meta_social_account_ativa_unique
+  on public.channel_sessions (meta_social_account_id)
+  where archived_at is null and meta_social_account_id is not null;
+
+notify pgrst, 'reload schema';

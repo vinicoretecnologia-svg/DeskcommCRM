@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { capabilitiesOf, PROVIDERS_DE_MENSAGEM } from "@/lib/channels/capabilities";
+import {
+  capabilitiesOf,
+  CHANNEL_PROVIDER_SOCIAL_DIRETA,
+  PROVIDERS_DE_MENSAGEM,
+} from "@/lib/channels/capabilities";
+import { socialDiretaAdapter } from "@/lib/channels/social/direta/adapter";
 import { CANAIS_DE_CONVERSA } from "@/lib/channels/canais-de-conversa";
 import type { ChannelAdapter, OutboundEnvelope } from "@/lib/channels/types";
 import {
@@ -26,15 +31,16 @@ import { nomeiaProvider } from "../../scripts/lint-channels.pattern";
  *
  *   1. **O Instagram é declarado PELO MODELO** — não por uma constante de
  *      fornecedor. É a condição de o #965 voltar.
- *   2. **A conexão direta não existe, e o modelo DIZ isso** — a lacuna vira
- *      expressão (`portaDisponivel`), não comentário.
+ *   2. **O modelo diz se a conexão direta existe** — a lacuna era expressão
+ *      (`portaDisponivel`), não comentário; desde a migration 9390 a mesma
+ *      expressão responde que ela EXISTE.
  *   3. **Uma conexão sem credencial falha dizendo o que falta** — e nunca finge
  *      sucesso, nem antes (`isConfigured`) nem depois (`send`).
  *   4. **CONTROLE: os canais que já existiam continuam declarados e verdes** —
  *      o modelo entra sem tirar nada do ar.
  *
- * O que ele NÃO prova: que a conexão direta com o Instagram funcione. Ela não
- * existe — é o recorte declarado do PR, e a prova de que não existe está em (2).
+ * O que ele NÃO prova: o transporte da conexão direta — esse é vigiado em
+ * `redes-sociais-direta-*.test.ts`.
  */
 
 /**
@@ -70,15 +76,18 @@ describe("o catálogo declara o Instagram pelo modelo neutro", () => {
     expect(portaDaRede("instagram").id).toBe("direta");
   });
 
-  it("a porta direta é declarada SEM transporte — é o que trava o #965", () => {
+  it("a porta direta TEM transporte desde a migration 9390 — o #965 destravou", () => {
     const direta = PORTAS_SOCIAIS.direta;
-    expect(direta.implementada).toBe(false);
-    // `null` porque o CHECK de `channel_sessions.provider` não tem valor para
-    // ela, e `ChannelAdapter.provider` é obrigatório: não há adapter a montar.
-    expect(direta.providerNoBanco).toBeNull();
-    // A resposta útil é `null`, e não uma exceção: quem pergunta "dá para montar
-    // a direta hoje?" recebe "não" sem ter que tratar erro.
-    expect(portaDisponivel("instagram")?.id).toBe("intermediada");
+    expect(direta.implementada).toBe(true);
+    // O valor que o CHECK de `channel_sessions.provider` aceita para ela, e o
+    // `provider` do adapter que a atende (`lib/channels/social/direta/adapter.ts`).
+    expect(direta.providerNoBanco).toBe(CHANNEL_PROVIDER_SOCIAL_DIRETA);
+    expect(socialDiretaAdapter.provider).toBe(direta.providerNoBanco);
+    // A preferida passa a ser a disponível: a direta, para as duas redes de inbox.
+    expect(portaDisponivel("instagram")?.id).toBe("direta");
+    expect(portaDisponivel("facebook")?.id).toBe("direta");
+    // Rede sem porta direta continua caindo na intermediada.
+    expect(portaDisponivel("linkedin")?.id).toBe("intermediada");
   });
 
   it("a porta intermediada é a que já existe, e é a que grava a coluna", () => {
@@ -148,7 +157,15 @@ describe("CONTROLE: os canais que já existiam continuam declarados", () => {
       // O canal do bot do Telegram (#3440) é provider de MENSAGEM, com matriz
       // de capabilities própria — a matriz continua respondendo por todos.
       "telegram",
+      // A conexão direta das redes sociais (migration 9390): mesma rede, outra porta.
+      "meta_social",
     ]);
+    // A mesma física de plataforma pelas duas portas: janela de 24h, sem modelo.
+    expect(capabilitiesOf(CHANNEL_PROVIDER_SOCIAL_DIRETA)).toMatchObject({
+      freeformOutsideWindow: false,
+      requiresTemplates: false,
+      groups: "none",
+    });
     for (const provider of PROVIDERS_DE_MENSAGEM) {
       const caps = capabilitiesOf(provider);
       expect(caps, `${provider} sem capabilities`).toBeTruthy();
@@ -273,17 +290,10 @@ describe("o adapter de uma porta sem credencial falha dizendo o que falta", () =
     await expect(adapter.send(ENVELOPE)).rejects.toThrow(PortaSemTransporteError);
   });
 
-  it("a porta direta não vira adapter: falta valor no CHECK de `channel_sessions.provider`", () => {
-    expect(() =>
-      adaptadorDaPorta({
-        plataforma: "instagram",
-        porta: "direta",
-        credencial: { conta: "conta-1", token: "tok" },
-      }),
-    ).toThrow(PortaSemTransporteError);
-    expect(() =>
-      adaptadorDaPorta({ plataforma: "instagram", porta: "direta", credencial: null }),
-    ).toThrow(/conexão direta ainda não tem valor em channel_sessions\.provider/);
+  it("a porta direta vira adapter, e sem credencial recusa nomeando o que falta", async () => {
+    const adapter = adaptadorDaPorta({ plataforma: "instagram", porta: "direta", credencial: null });
+    expect(adapter.provider).toBe(CHANNEL_PROVIDER_SOCIAL_DIRETA);
+    await expect(adapter.send(ENVELOPE)).rejects.toThrow(PortaSemCredencialError);
   });
 
   it("rede sem token nenhum: `exigenciasEmFalta` devolve TUDO o que a porta exige", () => {

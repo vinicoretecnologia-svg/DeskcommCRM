@@ -1479,6 +1479,7 @@ jobs:
         qa-l12-inbox.spec.ts
         recursos-opcionais.spec.ts
         redes-sociais-volta-nao-desloga.spec.ts
+        redes-sociais-direta.spec.ts
         skills-versao-nova-do-catalogo.spec.ts
         sons-dos-avisos.spec.ts
         suspensao-administrativa.spec.ts

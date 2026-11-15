@@ -653,6 +653,14 @@ const schema = z.object({
    */
   META_GRAPH_BASE_URL: z.string().optional().default(""),
   META_ADS_GRAPH_BASE_URL: z.string().optional().default(""),
+  /**
+   * Conexão DIRETA das redes sociais (Instagram Direct e Messenger, #965): o id
+   * do app e o id da configuração do Login do Facebook para Empresas que abre o
+   * "Entrar com Facebook". Opcionais — vazias, o botão não aparece e o resto do
+   * produto segue igual. Quem as lê é `lib/channels/social/direta/app.ts`.
+   */
+  META_APP_ID: z.string().optional().default(""),
+  META_SOCIAL_LOGIN_CONFIG_ID: z.string().optional().default(""),
 
   // Marca da instalação (white-label) — ver lib/branding.ts.
   // Sem prefixo NEXT_PUBLIC_ de propósito: essas seriam queimadas no bundle

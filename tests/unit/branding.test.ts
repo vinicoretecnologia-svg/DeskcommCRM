@@ -1010,6 +1010,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "tela de consentimento do OAuth do Google: é para lá que o usuário é REDIRECIONADO para autorizar a agenda. Endereço do fornecedor por definição.",
   },
+  "www.facebook.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "diálogo do Login do Facebook para Empresas (`lib/channels/social/direta/conexao.ts`): é para lá que o administrador é REDIRECIONADO para autorizar a Página e o Instagram na conexão direta das redes sociais (#965). Irmão de `accounts.google.com`: endereço do fornecedor por definição.",
+  },
   "api.tiendanube.com": {
     categoria: "FORNECEDOR",
     motivo: "endpoint da API da Nuvemshop/Tiendanube (ordens e catálogo do e-commerce do cliente).",

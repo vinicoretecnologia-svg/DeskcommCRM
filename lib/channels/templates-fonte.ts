@@ -51,6 +51,9 @@ const FONTE: Record<ProviderDeMensagem, FonteDeTemplates | null> = {
   // não existe definição aprovada a listar, e um seletor ali ofereceria solução
   // para um problema que este canal não tem.
   telegram: null,
+  // Porta direta das redes sociais: resposta livre dentro de 24h, sem modelo
+  // aprovado a listar — o mesmo motivo da porta intermediada.
+  meta_social: null,
 };
 
 /** `null` quando este canal não trabalha com definições aprovadas. */

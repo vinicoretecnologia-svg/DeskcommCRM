@@ -29,7 +29,14 @@ export type ChannelProvider =
    * telefone: é o `chat_id` que o próprio bot recebe no update. Ver
    * `./adapters/telegram.ts` e a ausência dele em `PROVIDERS_DE_TELEFONE`.
    */
-  | "telegram";
+  | "telegram"
+  /**
+   * A porta DIRETA das redes sociais (#965/#1320): Instagram Direct e
+   * Messenger da Página falando com a plataforma sem intermediário. É o valor
+   * de `PORTAS_SOCIAIS.direta.providerNoBanco` (`./social/porta.ts`); o
+   * transporte mora em `./social/direta/`.
+   */
+  | "meta_social";
 
 /**
  * Os providers que transportam MENSAGEM — o subconjunto sobre o qual a matriz

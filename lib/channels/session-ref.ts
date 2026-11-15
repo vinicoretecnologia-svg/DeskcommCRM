@@ -21,7 +21,12 @@ export type ChannelSessionRef =
    * provider — o token (que também o identificaria) é segredo cifrado e não
    * pode virar `sessionRef`, que atravessa log, URL de webhook e métrica.
    */
-  | { provider: "telegram"; telegram_bot_id: string };
+  | { provider: "telegram"; telegram_bot_id: string }
+  /**
+   * Porta direta das redes sociais (migration 9390): a conta (Página ou
+   * Instagram) é o que o webhook da plataforma traz em `entry[].id`.
+   */
+  | { provider: "meta_social"; meta_social_account_id: string };
 
 /**
  * Colunas que um `select` do PostgREST precisa trazer para `resolveSessionRef`
@@ -29,7 +34,7 @@ export type ChannelSessionRef =
  * nomeia coluna de provider, e ela some da feature junto com a decisão.
  */
 export const CHANNEL_SESSION_REF_COLUMNS =
-  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, telegram_bot_id";
+  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, telegram_bot_id, meta_social_account_id";
 
 export function resolveSessionRef(session: ChannelSessionRef): string {
   switch (session.provider) {
@@ -45,6 +50,10 @@ export function resolveSessionRef(session: ChannelSessionRef): string {
     // Bot API conhece e que a sessão guarda (migration 9342).
     case "telegram":
       return session.telegram_bot_id;
+    // A conta da porta direta (Página ou Instagram) — é o `entry[].id` que o
+    // webhook da plataforma entrega, e o que o envio usa para achar o token.
+    case "meta_social":
+      return session.meta_social_account_id;
     // O `accountId` que o provider devolve ao conectar a WABA. NÃO é o
     // phone_number_id da Meta: quem intermedeia guarda o número por dentro e
     // endereça pelo id dele. Mandar o id da Meta aqui responde 404.

@@ -77,9 +77,15 @@ describe("0087 · o canal da sessão chega ao clone", () => {
     // `meta_connection_origin` (migration 9328, #4074) entra de propósito: registra
     // se a conexão nasceu do Embedded Signup ou de token colado à mão. A cerca
     // continua valendo — é ela que pega coluna `meta_*` que apareça SEM intenção.
+    // As três `meta_social_*` (migration 9390, #965) entram de propósito: são a
+    // conta, a Página e o token da conexão DIRETA das redes sociais — outro
+    // provider (`meta_social`), que só casa com este `like` pelo prefixo.
     expect(cols).toEqual([
       "meta_connection_origin",
       "meta_phone_number_id",
+      "meta_social_account_id",
+      "meta_social_page_id",
+      "meta_social_token_encrypted",
       "meta_token_encrypted",
       "meta_waba_id",
       "meta_webhook_override_em",
@@ -202,6 +208,54 @@ describe("0087 · o canal da sessão chega ao clone", () => {
            values ('${org}', 'canal_inexistente', '{}', true, 'received', now()); select 'ok';`),
     );
     expect(msg).toMatch(/webhook_events_log_provider_check/);
+  });
+
+  describe("9390 · a conexão direta das redes sociais", () => {
+    const direta = (org: string, conta: string) =>
+      insertSession(org, {
+        provider: `'meta_social'`,
+        waha_session_name: "null",
+        meta_social_account_id: `'${conta}'`,
+        meta_social_page_id: `'pagina-1'`,
+      });
+
+    it("sessão sem a conta é RECUSADA pelo ramo próprio do ref_check", () => {
+      const org = novaOrg(`inv-9390-a-${Date.now()}`);
+      const msg = erroDe(() => insertSession(org, { provider: `'meta_social'`, waha_session_name: "null" }));
+      expect(msg).toMatch(/channel_sessions_provider_ref_check/);
+    });
+
+    it("ISOLAMENTO: a mesma conta não fica ativa em duas organizações", () => {
+      // O webhook do app é um só e acha a sessão pela conta do evento: duas
+      // organizações ativas com a mesma conta entregariam a conversa de uma à outra.
+      const conta = `conta-${Date.now()}`;
+      const orgA = novaOrg(`inv-9390-b-${Date.now()}`);
+      const orgB = novaOrg(`inv-9390-c-${Date.now()}`);
+      expect(direta(orgA, conta)).toContain("ok");
+      const msg = erroDe(() => direta(orgB, conta));
+      expect(msg).toMatch(/channel_sessions_meta_social_account_ativa_unique/);
+    });
+
+    it("arquivada libera a conta: reconectar em outra organização é possível", () => {
+      const conta = `conta-arq-${Date.now()}`;
+      const orgA = novaOrg(`inv-9390-d-${Date.now()}`);
+      const orgB = novaOrg(`inv-9390-e-${Date.now()}`);
+      direta(orgA, conta);
+      sql(`update public.channel_sessions set archived_at = now()
+            where organization_id = '${orgA}' and meta_social_account_id = '${conta}'; select 'ok';`);
+      expect(direta(orgB, conta)).toContain("ok");
+    });
+
+    it("o arquivo do webhook aceita a porta direta", () => {
+      const org = novaOrg(`inv-9390-f-${Date.now()}`);
+      expect(
+        sql(`
+          insert into public.webhook_events_log (organization_id, provider, raw_body, valid_signature, status, received_at)
+          values ('${org}', 'meta_social', '{}', true, 'received', now());
+          select count(*) from public.webhook_events_log where organization_id = '${org}' and provider = 'meta_social';
+        `).split("\n").pop(),
+      ).toBe("1");
+    });
   });
 
   it("sessões meta_cloud convivem: a UNIQUE de waha_session_name não barra NULLs", () => {
