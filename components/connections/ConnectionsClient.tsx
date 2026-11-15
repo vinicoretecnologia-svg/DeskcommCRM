@@ -19,7 +19,7 @@ import {
   type ChannelSession,
 } from "@/hooks/channels/useChannelSessions";
 import {
-  CHANNEL_PROVIDER_SOCIAL,
+  ehCanalDeRedeSocial,
   DEFAULT_CHANNEL_PROVIDER,
   capabilitiesOf,
 } from "@/lib/channels/capabilities";
@@ -227,7 +227,8 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
 
   // A mesma lista que a tela desenha é a que a ação em lote comanda: filtrar
   // social aqui (como a tela já faz) evita um botão que pede ids que ninguém vê.
-  const list = (sessions ?? []).filter((session) => session.provider !== CHANNEL_PROVIDER_SOCIAL);
+  // Rede social por QUALQUER porta (a intermediada e a direta) mora na aba própria.
+  const list = (sessions ?? []).filter((session) => !ehCanalDeRedeSocial(session.provider));
   /** Alvo de cada botão de lote — os dois só existem quando têm o que fazer. */
   const paraPausar = list.filter((c) => !canalDesativado(c.metadata));
   const paraRetomar = list.filter((c) => canalDesativado(c.metadata));

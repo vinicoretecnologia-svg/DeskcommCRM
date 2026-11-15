@@ -9,7 +9,20 @@ import type { OutboundMedia } from "@/lib/waha/media-send";
 
 export type { OutboundMedia };
 
-export type ChannelProvider = "waha" | "meta_cloud" | "zernio" | "zernio_social" | "wacalls" | "datafy";
+export type ChannelProvider =
+  | "waha"
+  | "meta_cloud"
+  | "zernio"
+  | "zernio_social"
+  | "wacalls"
+  | "datafy"
+  /**
+   * A porta DIRETA das redes sociais (#965): Instagram Direct e Messenger da
+   * Página falando com a plataforma sem intermediário. O transporte mora em
+   * `./social/direta/`. Sem ponto e vírgula neste comentário: o invariante que
+   * compara este tipo com o CHECK do banco lê a declaração até o primeiro deles.
+   */
+  | "meta_social";
 
 /**
  * Os providers que transportam MENSAGEM — o subconjunto sobre o qual a matriz

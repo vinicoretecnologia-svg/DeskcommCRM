@@ -612,6 +612,9 @@ const schema = z.object({
    */
   META_GRAPH_BASE_URL: z.string().optional().default(""),
   META_ADS_GRAPH_BASE_URL: z.string().optional().default(""),
+  /** Conexão direta das redes sociais (#965): id do app e da configuração do Login para Empresas. */
+  META_APP_ID: z.string().optional().default(""),
+  META_SOCIAL_LOGIN_CONFIG_ID: z.string().optional().default(""),
 
   // Marca da instalação (white-label) — ver lib/branding.ts.
   // Sem prefixo NEXT_PUBLIC_ de propósito: essas seriam queimadas no bundle

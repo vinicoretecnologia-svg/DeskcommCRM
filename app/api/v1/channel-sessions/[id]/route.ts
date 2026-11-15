@@ -26,7 +26,12 @@ import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, mfaEmDivida } from "@/lib/auth/server";
 import { orgAtivaDaApi, requireRole } from "@/lib/auth/require-role";
-import { CHANNEL_PROVIDER_SOCIAL, CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
+import {
+  CHANNEL_PROVIDER_SOCIAL,
+  CHANNEL_PROVIDER_SOCIAL_DIRETA,
+  CHANNEL_PROVIDER_WAHA,
+} from "@/lib/channels/capabilities";
+import { credencialApagadaAoArquivar } from "@/lib/channels/social/direta/conexao";
 import { resolverSaudeDaConexaoRemovida } from "@/lib/channels/health";
 import { sincronizarAvisoDePausa } from "@/lib/channels/central-de-pausa";
 import { desfazerWebhookDoNumero } from "@/lib/channels/meta/webhook-override";
@@ -418,6 +423,10 @@ export async function DELETE(
     // (`meta_token_encrypted` não entra aqui de propósito: a linha social não
     // usa essa coluna — a credencial que autoriza a chamada vive na integração.)
     patch.webhook_path_token = randomUUID().replace(/-/g, "");
+  } else if (session.provider === CHANNEL_PROVIDER_SOCIAL_DIRETA) {
+    // Conexão direta das redes sociais: o webhook é do app (nada por canal a
+    // apagar); o token da Página sai junto com a linha.
+    Object.assign(patch, credencialApagadaAoArquivar());
   } else {
     // ─── O OVERRIDE NÃO FICA ÓRFÃO NA META (issue #1334) ─────────────────────
     //

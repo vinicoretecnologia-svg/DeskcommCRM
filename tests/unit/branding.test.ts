@@ -946,6 +946,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da Google Ads API, para onde `lib/plataformas-de-anuncio/google/conversions.ts` reporta a venda de volta ao anúncio que trouxe o lead. Irmão de `graph.facebook.com` no eixo da Meta: é contrato do fornecedor, não escolha nossa — a conta de anúncios é do cliente, o domínio é do Google.",
   },
+  "www.facebook.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "diálogo do Login do Facebook para Empresas (`lib/channels/social/direta/conexao.ts`): é para lá que o administrador é REDIRECIONADO para autorizar a Página e o Instagram na conexão direta das redes sociais (#965). Irmão de `accounts.google.com`.",
+  },
   "accounts.google.com": {
     categoria: "FORNECEDOR",
     motivo:

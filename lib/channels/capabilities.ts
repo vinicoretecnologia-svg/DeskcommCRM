@@ -110,6 +110,23 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     costPerMessage: true,
     alteraMensagemEnviada: false,
   },
+  /**
+   * A porta DIRETA das redes sociais (#965): Instagram Direct e Messenger pela
+   * Graph API, sem intermediário. Mesma rede da linha `zernio_social`, mesma
+   * física: resposta livre só até 24h depois da última mensagem da pessoa, sem
+   * modelo aprovado. A Graph recebe o áudio por URL e não converte nada.
+   */
+  meta_social: {
+    freeformOutsideWindow: false,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: 1000,
+    voiceNote: "opus-only",
+    groups: "none",
+    costPerMessage: false,
+    alteraMensagemEnviada: false,
+  },
 };
 
 /**
@@ -136,6 +153,16 @@ export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
 export const CHANNEL_PROVIDER_DATAFY: ChannelProvider = "datafy";
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
+/** Porta direta das redes sociais (#965) — Instagram e Messenger sem intermediário. */
+export const CHANNEL_PROVIDER_SOCIAL_DIRETA: ChannelProvider = "meta_social";
+
+/** As linhas de `channel_sessions` que são REDE SOCIAL, por qualquer porta. */
+export const PROVIDERS_DE_REDE_SOCIAL: readonly string[] = [CHANNEL_PROVIDER_SOCIAL, CHANNEL_PROVIDER_SOCIAL_DIRETA];
+
+/** `true` quando a linha é de rede social, por qualquer porta. */
+export function ehCanalDeRedeSocial(provider: string | null | undefined): boolean {
+  return PROVIDERS_DE_REDE_SOCIAL.includes(provider ?? "");
+}
 
 /**
  * Os providers por onde MENSAGEM entra e sai — a única lista que responde
@@ -158,6 +185,8 @@ export const PROVIDERS_DE_MENSAGEM = [
   "zernio",
   "zernio_social",
   "datafy",
+  // Porta direta das redes sociais (#965): conversa, só com quem escreveu.
+  "meta_social",
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**
