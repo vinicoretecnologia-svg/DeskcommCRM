@@ -15,7 +15,7 @@
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
-import { fail, ok } from "@/lib/api/wrappers";
+import { comIdDaRequisicao, fail, ok } from "@/lib/api/wrappers";
 import { desafioDaPortaDireta, receberEntregaDaPortaDireta } from "@/lib/channels/social/direta/entrada";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,8 +25,11 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest): Promise<Response> {
   const desafio = await desafioDaPortaDireta(new URL(req.url).searchParams);
-  if (desafio === null) return new Response("forbidden", { status: 403 });
-  return new Response(desafio, { status: 200, headers: { "Content-Type": "text/plain" } });
+  if (desafio === null) return comIdDaRequisicao(new Response("forbidden", { status: 403 }), req);
+  return comIdDaRequisicao(
+    new Response(desafio, { status: 200, headers: { "Content-Type": "text/plain" } }),
+    req,
+  );
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
