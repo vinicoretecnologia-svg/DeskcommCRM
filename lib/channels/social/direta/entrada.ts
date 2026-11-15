@@ -38,8 +38,11 @@ import { abrirArquivoDoWebhook, fecharArquivoDoWebhook } from "../../arquivo-de-
 import { CHANNEL_PROVIDER_SOCIAL_DIRETA } from "../../capabilities";
 import { verificationChallenge, verifyMetaSignature } from "../../meta/webhook";
 import { ingestZernioInbound } from "../../zernio/ingest";
+import type { SocialMessage } from "../parser";
 import { appDaPortaDireta } from "./app";
-import { corpoSoDaConta, eventosPorConta } from "./webhook";
+import { credencialDaContaDireta } from "./credenciais";
+import { perfilDoParticipante } from "./perfil";
+import { corpoSoDaConta, eventosPorConta, type EventosDaConta } from "./webhook";
 
 export type DesfechoDaEntrada =
   | { status: 401 | 404; motivo: string }
@@ -103,7 +106,8 @@ export async function receberEntregaDaPortaDireta(
 
     let falhou: string | null = null;
     const payload = JSON.parse(corpo) as unknown;
-    for (const mensagem of grupo.mensagens) {
+    const comNome = await comNomeDoParticipante(admin, sessao.organization_id, grupo);
+    for (const mensagem of comNome) {
       try {
         const r = await ingestZernioInbound(admin, {
           organizationId: sessao.organization_id,
@@ -113,6 +117,7 @@ export async function receberEntregaDaPortaDireta(
         });
         if (r.status === "ingested") resumo.gravadas += 1;
         else resumo.ignoradas += 1;
+        await nomearContatoSemNome(admin, sessao.organization_id, mensagem);
       } catch (erro) {
         resumo.falhas += 1;
         falhou = erro instanceof Error ? erro.message.slice(0, 160) : "ingest_failed";
@@ -131,6 +136,71 @@ export async function receberEntregaDaPortaDireta(
     });
   }
   return { status: resumo.falhas > 0 ? 500 : 200, resumo };
+}
+
+/**
+ * As mensagens de ENTRADA do grupo com o nome de quem escreveu.
+ *
+ * O webhook não traz nome; ele é lido na Graph com o token da Página
+ * (`./perfil.ts`). Só para mensagem de entrada (na saída quem fala é a conta),
+ * uma pergunta por pessoa (o memo de `perfil.ts` evita repetir) e nunca lança:
+ * sem credencial ou sem nome, a mensagem segue como veio.
+ */
+async function comNomeDoParticipante(
+  admin: SupabaseClient,
+  org: string,
+  grupo: EventosDaConta,
+): Promise<SocialMessage[]> {
+  const entradas = grupo.mensagens.filter(
+    (m) => m.direction === "inbound" && m.kind === "message" && !m.identity.displayName,
+  );
+  if (entradas.length === 0) return grupo.mensagens;
+  let token: string | null = null;
+  try {
+    token = (await credencialDaContaDireta(admin, { organizationId: org, accountId: grupo.accountId }))?.token ?? null;
+  } catch {
+    token = null;
+  }
+  if (!token) return grupo.mensagens;
+  const saida: SocialMessage[] = [];
+  for (const m of grupo.mensagens) {
+    if (!entradas.includes(m)) {
+      saida.push(m);
+      continue;
+    }
+    const perfil = await perfilDoParticipante({
+      token,
+      plataforma: grupo.plataforma,
+      contaId: grupo.accountId,
+      participantId: m.participantId,
+    });
+    saida.push({
+      ...m,
+      identity: { ...m.identity, displayName: perfil.nome, username: perfil.usuario ?? m.identity.username },
+    });
+  }
+  return saida;
+}
+
+/**
+ * O contato que nasceu SEM nome (antes desta leitura existir, ou quando a Graph
+ * falhou) ganha o nome assim que ele aparece. Só preenche o que está vazio —
+ * nome que alguém digitou no CRM nunca é sobrescrito. Nunca lança.
+ */
+async function nomearContatoSemNome(admin: SupabaseClient, org: string, m: SocialMessage): Promise<void> {
+  const nome = m.identity.displayName;
+  if (!nome || m.direction !== "inbound") return;
+  try {
+    await admin
+      .from("contacts")
+      .update({ name: nome, display_name: nome })
+      .eq("organization_id", org)
+      .eq("social_identity", `${m.platform}:${m.accountId}:${m.participantId}`)
+      .is("is_merged_into", null)
+      .is("display_name", null);
+  } catch {
+    // Enfeite: a mensagem já foi gravada.
+  }
 }
 
 /** O handshake do webhook (GET). `null` = recusar com 403. */
