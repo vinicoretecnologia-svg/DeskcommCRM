@@ -39,15 +39,35 @@ vi.mock("@/lib/channels/arquivo-de-webhook", () => ({
   },
 }));
 
-const ingeridas = vi.hoisted(() => [] as { organizationId: string; channelSessionId: string; texto: string | null }[]);
+const credencialPedida = vi.hoisted(() => [] as { organizationId: string; accountId: string }[]);
+vi.mock("@/lib/channels/social/direta/credenciais", () => ({
+  credencialDaContaDireta: async (_db: unknown, alvo: { organizationId: string; accountId: string }) => {
+    credencialPedida.push(alvo);
+    return { token: `token-de-${alvo.accountId}` };
+  },
+}));
+vi.mock("@/lib/channels/social/direta/perfil", () => ({
+  perfilDoParticipante: async (a: { participantId: string }) => ({ nome: `Nome ${a.participantId}`, usuario: null }),
+}));
+
+const ingeridas = vi.hoisted(() => [] as { organizationId: string; channelSessionId: string; texto: string | null; nome?: string | null }[]);
 const ingestao = vi.hoisted(() => ({ falha: false }));
 vi.mock("@/lib/channels/zernio/ingest", () => ({
   ingestZernioInbound: async (
     _db: unknown,
-    i: { organizationId: string; channelSessionId: string; socialMessage: { text: string | null } },
+    i: {
+      organizationId: string;
+      channelSessionId: string;
+      socialMessage: { text: string | null; identity: { displayName: string | null } };
+    },
   ) => {
     if (ingestao.falha) throw new Error("insert_failed");
-    ingeridas.push({ organizationId: i.organizationId, channelSessionId: i.channelSessionId, texto: i.socialMessage.text });
+    ingeridas.push({
+      organizationId: i.organizationId,
+      channelSessionId: i.channelSessionId,
+      texto: i.socialMessage.text,
+      nome: i.socialMessage.identity.displayName,
+    });
     return { status: "ingested" };
   },
 }));
@@ -60,6 +80,20 @@ type Sessao = { id: string; organization_id: string; provider: string; meta_soci
 function bancoCom(sessoes: Sessao[]) {
   return {
     from(tabela: string) {
+      if (tabela === "contacts") {
+        // O preenchimento do nome do contato: filtrado pela organização da sessão.
+        const filtros: [string, unknown][] = [];
+        const c = {
+          update: () => c,
+          eq: (col: string, v: unknown) => (filtros.push([col, v]), c),
+          is: () => c,
+          then: (ok: (v: unknown) => unknown) => {
+            contatosNomeados.push(Object.fromEntries(filtros));
+            return Promise.resolve({ error: null }).then(ok);
+          },
+        };
+        return c;
+      }
       expect(tabela).toBe("channel_sessions");
       const filtros: [string, unknown][] = [];
       const q = {
@@ -94,7 +128,11 @@ const msg = (conta: string, pessoa: string, mid: string, text: string) => ({
   messaging: [{ sender: { id: pessoa }, recipient: { id: conta }, message: { mid, text } }],
 });
 
+const contatosNomeados: Record<string, unknown>[] = [];
+
 beforeEach(() => {
+  contatosNomeados.length = 0;
+  credencialPedida.length = 0;
   app.appSecret = SEGREDO;
   arquivados.length = 0;
   fechados.length = 0;
@@ -126,9 +164,16 @@ describe("isolamento entre organizações", () => {
     );
     expect(r.status).toBe(200);
     expect(ingeridas).toEqual([
-      { organizationId: "org-a", channelSessionId: "sess-a", texto: "cliente da A" },
-      { organizationId: "org-b", channelSessionId: "sess-b", texto: "cliente da B" },
+      { organizationId: "org-a", channelSessionId: "sess-a", texto: "cliente da A", nome: "Nome p1" },
+      { organizationId: "org-b", channelSessionId: "sess-b", texto: "cliente da B", nome: "Nome p2" },
     ]);
+    // O token para ler o nome foi pedido pela organização DONA de cada conta.
+    expect(credencialPedida).toEqual([
+      { organizationId: "org-a", accountId: "pag-a" },
+      { organizationId: "org-b", accountId: "pag-b" },
+    ]);
+    // E o contato sem nome é preenchido só dentro da organização dele.
+    expect(contatosNomeados.map((f) => f.organization_id)).toEqual(["org-a", "org-b"]);
     // O arquivo de cada organização guarda só o recorte dela.
     const daA = arquivados.find((a) => a.organizationId === "org-a")!;
     expect(daA.rawBody).toContain("cliente da A");
