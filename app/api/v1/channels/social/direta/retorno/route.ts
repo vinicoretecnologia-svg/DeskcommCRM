@@ -51,11 +51,12 @@ export const dynamic = "force-dynamic";
  * mandaria a pessoa para o `/login`, com a conta já ligada (o defeito do #1579 /
  * #1646). A ponte troca quem inicia a navegação seguinte — `lib/auth/ponte-de-volta.ts`.
  */
-function voltar(params: Record<string, string>, req: NextRequest): NextResponse {
+async function voltar(params: Record<string, string>, req: NextRequest): Promise<NextResponse> {
   const destino = new URLSearchParams({ aba: "sociais", ...params });
   const ponte = respostaDePonte(
     `/app/connections?${destino.toString()}`,
-    marcaDaSaida(null).nome,
+    // Nunca lança: degrada para a marca padrão (`lib/branding/saida.ts`).
+    (await marcaDaSaida(null)).nome,
     "Voltando para as conexões…",
   );
   const resposta = comIdDaRequisicao(
