@@ -33,8 +33,10 @@ export type ChannelProvider =
   /**
    * A porta DIRETA das redes sociais (#965/#1320): Instagram Direct e
    * Messenger da Página falando com a plataforma sem intermediário. É o valor
-   * de `PORTAS_SOCIAIS.direta.providerNoBanco` (`./social/porta.ts`); o
-   * transporte mora em `./social/direta/`.
+   * de `PORTAS_SOCIAIS.direta.providerNoBanco` (`./social/porta.ts`), e o
+   * transporte mora em `./social/direta/`. Sem ponto e vírgula neste
+   * comentário: o invariante que compara este tipo com o CHECK do banco lê
+   * a declaração até o primeiro deles.
    */
   | "meta_social";
 
