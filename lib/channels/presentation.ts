@@ -10,6 +10,8 @@ export function channelBrand(
     case "wacalls":
       return "whatsapp";
     case "zernio_social":
+    // A porta direta é a MESMA rede por outro encanamento: o ícone vem da rede.
+    case "meta_social":
       if (session.social_platform === "instagram") return "instagram";
       if (session.social_platform === "facebook") return "messenger";
       // O Telegram já está no catálogo de redes (`social/catalog.ts`) como porta

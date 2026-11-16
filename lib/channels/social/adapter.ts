@@ -1,5 +1,5 @@
-import { MAX_MEDIA_BYTES, MediaTooLargeError } from "@/lib/messaging/media/types";
 import { z } from "zod";
+import { baixarMidiaComTeto } from "./baixar-midia";
 import { assertSafeOutboundUrl } from "@/lib/automation/outbound-url";
 import { assertDestinoResolvidoSeguro } from "@/lib/automation/outbound-ip";
 import { zernioBaseUrl } from "../zernio/credentials";
@@ -55,6 +55,8 @@ export const socialAdapter: ChannelAdapter = {
   },
   async fetchInboundMedia(input) {
     const url = new URL(input.url);
+    // Destino conferido ANTES de ler a credencial: URL insegura não chega nem a
+    // abrir a chave. `baixarMidiaComTeto` confere de novo — a guarda mora lá.
     assertSafeOutboundUrl(url.toString());
     await assertDestinoResolvidoSeguro(url.hostname);
     const creds = await zernioCredsForAccountId(createAdminClient(), {
@@ -65,42 +67,10 @@ export const socialAdapter: ChannelAdapter = {
     // Only the provider's own media endpoint receives its API key, never a CDN or redirect.
     const providerMedia =
       url.origin === new URL(zernioBaseUrl()).origin && url.pathname.startsWith("/api/v1/");
-    const response = await fetch(url, {
-      redirect: "error",
-      signal: AbortSignal.timeout(15_000),
+    return baixarMidiaComTeto(url, {
       headers: providerMedia ? { Authorization: `Bearer ${creds.apiKey}` } : {},
+      hintMime: input.hintMime,
     });
-    if (!response.ok) throw new Error(`Falha ao baixar mídia (HTTP ${response.status}).`);
-    if (Number(response.headers.get("content-length") ?? 0) > MAX_MEDIA_BYTES) {
-      await response.body?.cancel();
-      throw new MediaTooLargeError();
-    }
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("A mídia retornou um corpo vazio.");
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > MAX_MEDIA_BYTES) {
-          await reader.cancel();
-          throw new MediaTooLargeError();
-        }
-        chunks.push(value);
-      }
-    } finally {
-      reader.releaseLock();
-    }
-    const buffer = Buffer.concat(chunks);
-    return {
-      buffer,
-      mime:
-        response.headers.get("content-type")?.split(";")[0] ??
-        input.hintMime ??
-        "application/octet-stream",
-    };
   },
   async sendTemplate() {
     throw new Error("Esta rede não usa modelos de WhatsApp.");

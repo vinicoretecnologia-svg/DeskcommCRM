@@ -161,6 +161,27 @@ const LEITURAS_LEGITIMAS: ReadonlyArray<{
       "quem já atendia: a proteção que existe para não mexer no webhook de " +
       "ninguém passaria a autorizar exatamente isso.",
   },
+  {
+    arquivo: "lib/channels/social/direta/entrada.ts",
+    funcao: "sessaoDaConta",
+    filtros: ["provider", "meta_social_account_id", "archived_at"],
+    motivo:
+      "É a consulta que DESCOBRE a organização: o webhook do app é um só para a " +
+      "instalação, sem token no caminho, e a dona do evento é a sessão ATIVA com a " +
+      "conta do `entry.id` — só depois de a assinatura do app conferir. Filtrar por " +
+      "organization_id exigiria saber a resposta antes da pergunta. O índice único " +
+      "da migration 9390 garante no máximo uma ativa, e duas descartam o evento.",
+  },
+  {
+    arquivo: "lib/channels/social/direta/conexao.ts",
+    funcao: "sessoesAtivasDaConta",
+    filtros: ["provider", "meta_social_account_id", "archived_at"],
+    motivo:
+      "Pergunta 'esta conta já está ativa em OUTRA organização?' antes de gravar: o " +
+      "ponto é alcançar a outra organização, para recusar com " +
+      "`conta_em_outra_organizacao` em vez de tomar a conta. Só o id e a organização " +
+      "das linhas são lidos, e nada delas volta para a tela.",
+  },
 ];
 
 /** A consulta é EXATAMENTE a declarada (arquivo + função + conjunto de filtros)? */

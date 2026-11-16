@@ -22,6 +22,13 @@
  * justamente o lugar onde ele é um DADO (qual valor a coluna recebe) e não uma
  * pergunta.
  *
+ * ─── Atualização (migration 9390): a porta `direta` EXISTE ──────────────────
+ *
+ * O texto abaixo é o registro de por que ela nasceu sem transporte, e continua
+ * valendo como explicação do modelo. Desde a 9390 o CHECK aceita o valor da
+ * porta direta, o transporte mora em `./direta/` e `portaDisponivel` devolve a
+ * direta para Instagram e Facebook.
+ *
  * ─── Por que `direta` é declarada sem transporte ────────────────────────────
  *
  * Porque é a VERDADE, e porque a verdade é o que faltava para o #965 andar.
@@ -36,6 +43,7 @@
  * envelhece. Quem for ligar a conexão direta sabe, pela leitura do modelo, que o
  * primeiro passo é um valor no CHECK — migration, e portanto PR próprio.
  */
+import { CHANNEL_PROVIDER_SOCIAL_DIRETA } from "../capabilities";
 import type { ProviderDeMensagem } from "../types";
 import { redeSocial, SOCIAL_PROVIDER, type PortaSocialId } from "./catalog";
 
@@ -86,9 +94,11 @@ export const PORTAS_SOCIAIS: Record<PortaSocialId, PortaSocial> = {
   direta: {
     id: "direta",
     rotulo: "conexão direta",
-    providerNoBanco: null,
+    // Migration 9390: o valor existe no CHECK, e o transporte mora em
+    // `./direta/` (adapter, webhook e "Entrar com Facebook").
+    providerNoBanco: CHANNEL_PROVIDER_SOCIAL_DIRETA as ProviderDeMensagem,
     exige: ["conta_autorizada", "credencial_da_conta"],
-    implementada: false,
+    implementada: true,
   },
   /**
    * A conexão por parceiro homologado. É a que existe hoje, para todas as redes:

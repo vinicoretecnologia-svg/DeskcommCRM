@@ -26,7 +26,12 @@ import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, mfaEmDivida } from "@/lib/auth/server";
 import { orgAtivaDaApi, requireRole } from "@/lib/auth/require-role";
-import { CHANNEL_PROVIDER_SOCIAL, CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
+import {
+  CHANNEL_PROVIDER_SOCIAL,
+  CHANNEL_PROVIDER_SOCIAL_DIRETA,
+  CHANNEL_PROVIDER_WAHA,
+} from "@/lib/channels/capabilities";
+import { credencialApagadaAoArquivar } from "@/lib/channels/social/direta/conexao";
 import { BOT_CHANNEL_PROVIDER, desligarRoboNoFornecedor } from "@/lib/channels/bot/connect";
 import { PARTNER_CHANNEL_PROVIDER, desfazerNoProvedor } from "@/lib/channels/connect";
 import { resolverSaudeDaConexaoRemovida } from "@/lib/channels/health";
@@ -422,6 +427,11 @@ export async function DELETE(
     // (`meta_token_encrypted` não entra aqui de propósito: a linha social não
     // usa essa coluna — a credencial que autoriza a chamada vive na integração.)
     patch.webhook_path_token = randomUUID().replace(/-/g, "");
+  } else if (session.provider === CHANNEL_PROVIDER_SOCIAL_DIRETA) {
+    // Conexão direta das redes sociais: não há assinatura por canal a apagar
+    // (o webhook é do app, e a entrega de conta sem sessão ativa é descartada
+    // na entrada). O token da Página sai junto com a linha.
+    Object.assign(patch, credencialApagadaAoArquivar());
   } else if (session.provider === BOT_CHANNEL_PROVIDER) {
     // O robô de mensagens (#3486): o webhook dele aponta para esta instalação.
     // Apaga lá ANTES do patch, que gira o token do caminho; best-effort como o

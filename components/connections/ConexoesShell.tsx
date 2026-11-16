@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { RedesSociaisClient } from "./RedesSociaisClient";
 import { CanalBotClient } from "./CanalBotClient";
+import { ConexaoDiretaSocialClient } from "./ConexaoDiretaSocialClient";
 import { CanalGraphParceiroClient } from "./CanalGraphParceiroClient";
 import { CanalOficialClient } from "./CanalOficialClient";
 import { CanalParceiroClient } from "./CanalParceiroClient";
@@ -132,7 +133,14 @@ export function ConexoesShell({
       <TabsContent value="telefonia" className="mt-0">
         <TelefoniaClient />
       </TabsContent>
-      <TabsContent value="sociais" className="mt-0"><RedesSociaisClient /></TabsContent>
+      <TabsContent value="sociais" className="mt-0">
+        {/* A conexão direta vem primeiro: é a porta preferida (decisão do dono,
+            `lib/channels/social/catalog.ts`); a por parceiro segue logo abaixo. */}
+        <div className="flex flex-col gap-6">
+          <ConexaoDiretaSocialClient />
+          <RedesSociaisClient />
+        </div>
+      </TabsContent>
 
       <TabsContent value="voz" className="mt-0">
         <CanalVozClient wacallsConfigured={wacallsConfigured} />

@@ -97,7 +97,22 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     canManageTemplates: false,
     banRisk: false,
     minIntervalMs: 1000,
-    voiceNote: "server-convert",
+    // `none` está MEDIDO, não deduzido. Era `server-convert`, e o agente com
+    // "Enviar nota de voz" ligado sintetizava mp3 e mandava pelo provedor numa
+    // conversa de Instagram: HTTP 400 em TODA tentativa (instalação real,
+    // 15/11/2026), cada uma virando uma bolha de áudio falhada, e a fila
+    // re-tentava o turno inteiro. O texto, no mesmo canal, saía.
+    //
+    // A causa está na doc das duas pontas, lida em 15/11/2026:
+    //  - a Meta aceita áudio de DM do Instagram em aac, m4a, wav e mp4 (até
+    //    25 MB) — nem mp3 nem ogg/opus, os dois formatos que sabemos sintetizar
+    //    (https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api);
+    //  - o provedor documenta `voiceNote` (bolha de voz) SÓ para WhatsApp, e não
+    //    lista formato de áudio nenhum para Instagram/Facebook
+    //    (https://docs.zernio.com/messages/send-inbox-message).
+    // Converter para um formato aceito fica para quando houver medição de ponta
+    // a ponta; até lá, prometer voz aqui é prometer uma bolha que falha.
+    voiceNote: "none",
     groups: "none",
     costPerMessage: true,
     alteraMensagemEnviada: false,
@@ -191,11 +206,13 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
    * `retry_after`. O limite é da PLATAFORMA, que é exatamente o que este campo
    * significa.
    *
-   * `voiceNote: "opus-only"` — limite DESTA implementação, não da plataforma:
+   * `voiceNote: "none"` — limite DESTA implementação, não da plataforma:
    * o `sendVoice` da Bot API também aceita MP3 e M4A, mas o adapter da v1
-   * recusa todo envio que não seja texto (mídia é a T2 da issue). O campo não
-   * tem valor "não existe", e "opus-only" é o que não promete conversão que o
-   * adapter não faz. `groups: "none"` é o "fora da v1" da
+   * recusa todo envio que não seja texto (mídia é a T2 da issue). Era
+   * "opus-only" porque o campo não tinha valor "não existe" — e o agente com
+   * voz ligada sintetizava um opus que o adapter recusava, em vez de responder
+   * em texto. Quando a T2 entregar áudio, este valor muda junto com o adapter.
+   * `groups: "none"` é o "fora da v1" da
    * issue dito em vocabulário de capability — o bot lê `chat.type` e ignora o
    * que não for `private`.
    */
@@ -205,7 +222,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     canManageTemplates: false,
     banRisk: false,
     minIntervalMs: 1000,
-    voiceNote: "opus-only",
+    voiceNote: "none",
     groups: "none",
     costPerMessage: false,
     // Editar e apagar existem na Bot API (`editMessageText`/`deleteMessage`) e
@@ -223,6 +240,44 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     statusUpdates: false,
     // A conversão de venda volta à Meta pela conversa de WhatsApp; o robô do
     // Telegram não tem ponte, e `true` ofereceria uma chave que não envia nada.
+    reportaConversao: false,
+  },
+  /**
+   * A porta DIRETA das redes sociais (#965/#1320): Instagram Direct e
+   * Messenger da Página pela Graph API, sem intermediário.
+   *
+   * É a MESMA rede da linha `zernio_social` — o que a plataforma permite não
+   * muda com o encanamento —, então o perfil é o mesmo, com uma diferença
+   * medida na documentação da plataforma:
+   *
+   *  - `freeformOutsideWindow: false` — a política de mensagens do Messenger e
+   *    do Instagram só aceita resposta livre até 24h depois da última mensagem
+   *    da pessoa (`messaging_type: RESPONSE`); fora disso a Graph API recusa
+   *    (erro 10 / subcódigo 2018278). Não há modelo aprovado para reabrir.
+   *  - `voiceNote: "none"` — a mesma recusa da linha intermediada: a Meta não
+   *    aceita mp3 nem ogg/opus em DM (só aac, m4a, wav e mp4), então a nota de
+   *    voz sintetizada pela IA viraria bolha falhada. O agente responde em texto.
+   *  - `costPerMessage: false` — a resposta dentro da janela é gratuita.
+   */
+  meta_social: {
+    freeformOutsideWindow: false,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: 1000,
+    voiceNote: "none",
+    groups: "none",
+    costPerMessage: false,
+    // Editar e reagir existem só parcialmente na plataforma (reação só no
+    // Instagram); este adapter não implementa nenhum dos dois.
+    alteraMensagemEnviada: false,
+    podeReagir: false,
+    transmissao: false,
+    // Nenhuma destas linhas conversa com um aparelho pareado.
+    phonebook: false,
+    // Status é do WhatsApp: não existe neste canal.
+    statusUpdates: false,
+    // A venda volta à Meta pela conversa de WhatsApp; aqui não há ponte.
     reportaConversao: false,
   },
 };
@@ -260,6 +315,23 @@ export const CHANNEL_PROVIDER_DATAFY: ChannelProvider = "datafy";
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 /** Bot do Telegram (Bot API, #3440) — canal de mensagem sem telefone. */
 export const CHANNEL_PROVIDER_TELEGRAM: ChannelProvider = "telegram";
+/** Porta direta das redes sociais (#965/#1320) — Instagram e Messenger sem intermediário. */
+export const CHANNEL_PROVIDER_SOCIAL_DIRETA: ChannelProvider = "meta_social";
+
+/**
+ * As linhas de `channel_sessions` que são REDE SOCIAL, por qualquer porta.
+ *
+ * Existe porque "é rede social?" era respondido comparando com UM provider
+ * (`CHANNEL_PROVIDER_SOCIAL`), e a porta direta é a segunda resposta certa à
+ * mesma pergunta. Quem filtra a lista de números por QR, ou fecha avisos de
+ * conta social, pergunta isto — e não qual porta é.
+ */
+export const PROVIDERS_DE_REDE_SOCIAL: readonly string[] = [CHANNEL_PROVIDER_SOCIAL, CHANNEL_PROVIDER_SOCIAL_DIRETA];
+
+/** `true` quando a linha é de rede social, por qualquer porta. */
+export function ehCanalDeRedeSocial(provider: string | null | undefined): boolean {
+  return PROVIDERS_DE_REDE_SOCIAL.includes(provider ?? "");
+}
 
 /**
  * O provider em que o NÚMERO é a conexão: pareado por QR, a linha só vira
@@ -295,6 +367,9 @@ export const PROVIDERS_DE_MENSAGEM = [
   // fala com quem o iniciou. `PROVIDERS_DE_TELEFONE` fica de fora de propósito,
   // e o motivo está lá embaixo.
   "telegram",
+  // Porta direta das redes sociais (#965): conversa, mas só com quem escreveu e
+  // não tem telefone — fica fora de `PROVIDERS_DE_TELEFONE` como a irmã social.
+  "meta_social",
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**
@@ -322,7 +397,10 @@ export const PROVIDERS_DE_TELEFONE = [
   "meta_cloud",
   "zernio",
   "datafy",
-] as const satisfies readonly Exclude<(typeof PROVIDERS_DE_MENSAGEM)[number], "zernio_social" | "telegram">[];
+] as const satisfies readonly Exclude<
+  (typeof PROVIDERS_DE_MENSAGEM)[number],
+  "zernio_social" | "telegram" | "meta_social"
+>[];
 
 /**
  * `true` quando a linha de `channel_sessions` é um canal de mensagem.
@@ -337,6 +415,24 @@ export const PROVIDERS_DE_TELEFONE = [
  */
 export function transportaMensagem(provider: string | null | undefined): boolean {
   return (PROVIDERS_DE_MENSAGEM as readonly string[]).includes(provider ?? "");
+}
+
+/**
+ * O canal SABIDAMENTE recusa a nota de voz que o gravador do Inbox produz?
+ *
+ * É o lado humano do `voiceNote: "none"`: o agente já responde em texto nesses
+ * canais, e o atendente não pode ganhar um microfone que grava, sobe e termina
+ * numa bolha `failed`. O gravador sobe ogg/opus (ver
+ * `lib/messaging/media/voice-transcode.ts`), e a DM do Instagram só aceita
+ * aac, m4a, wav e mp4.
+ *
+ * Responde `true` SÓ para um canal conhecido que declarou `none`. Provider
+ * ausente ou mais novo que este build fica com o microfone, como sempre esteve:
+ * esconder um botão que funciona por não saber o canal é o erro mais caro aqui.
+ */
+export function recusaNotaDeVoz(provider: string | null | undefined): boolean {
+  if (!transportaMensagem(provider)) return false;
+  return CHANNEL_CAPABILITIES[provider as ProviderDeMensagem].voiceNote === "none";
 }
 
 /**
