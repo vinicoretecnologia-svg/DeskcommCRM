@@ -178,20 +178,26 @@ interface ContaParaGravar {
   token: string;
 }
 
+/** Quem tem esta conta ATIVA, em qualquer organização — a pergunta de "já é de outra?". */
+async function sessoesAtivasDaConta(db: SupabaseClient, accountId: string) {
+  const { data, error } = await db
+    .from("channel_sessions")
+    .select("id, organization_id, metadata")
+    .eq("provider", CHANNEL_PROVIDER_SOCIAL_DIRETA)
+    .eq("meta_social_account_id", accountId)
+    .is("archived_at", null);
+  if (error) return null;
+  return (data ?? []) as { id: string; organization_id: string; metadata: Record<string, unknown> | null }[];
+}
+
 async function gravarConta(
   db: SupabaseClient,
   org: string,
   conta: ContaParaGravar,
 ): Promise<DesfechoDaConta> {
   const base = { conta: conta.accountId, plataforma: conta.plataforma } as const;
-  const { data: ativas, error: erroDaLeitura } = await db
-    .from("channel_sessions")
-    .select("id, organization_id, metadata")
-    .eq("provider", CHANNEL_PROVIDER_SOCIAL_DIRETA)
-    .eq("meta_social_account_id", conta.accountId)
-    .is("archived_at", null);
-  if (erroDaLeitura) return { ...base, resultado: "falhou" };
-  const linhas = (ativas ?? []) as { id: string; organization_id: string; metadata: Record<string, unknown> | null }[];
+  const linhas = await sessoesAtivasDaConta(db, conta.accountId);
+  if (!linhas) return { ...base, resultado: "falhou" };
   if (linhas.some((l) => l.organization_id !== org)) return { ...base, resultado: "conta_em_outra_organizacao" };
 
   const tokenCifrado = await encryptWebhookSecret(db, conta.token);

@@ -174,7 +174,7 @@ const LEITURAS_LEGITIMAS: ReadonlyArray<{
   },
   {
     arquivo: "lib/channels/social/direta/conexao.ts",
-    funcao: "gravarConta",
+    funcao: "sessoesAtivasDaConta",
     filtros: ["provider", "meta_social_account_id", "archived_at"],
     motivo:
       "Pergunta 'esta conta já está ativa em OUTRA organização?' antes de gravar: o " +
