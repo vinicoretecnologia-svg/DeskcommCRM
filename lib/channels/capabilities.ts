@@ -254,9 +254,9 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
    *    do Instagram só aceita resposta livre até 24h depois da última mensagem
    *    da pessoa (`messaging_type: RESPONSE`); fora disso a Graph API recusa
    *    (erro 10 / subcódigo 2018278). Não há modelo aprovado para reabrir.
-   *  - `voiceNote: "opus-only"` — a Graph API recebe o áudio por URL e não
-   *    converte nada; "server-convert" prometeria uma conversão que este
-   *    adapter não faz.
+   *  - `voiceNote: "none"` — a mesma recusa da linha intermediada: a Meta não
+   *    aceita mp3 nem ogg/opus em DM (só aac, m4a, wav e mp4), então a nota de
+   *    voz sintetizada pela IA viraria bolha falhada. O agente responde em texto.
    *  - `costPerMessage: false` — a resposta dentro da janela é gratuita.
    */
   meta_social: {
@@ -265,7 +265,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     canManageTemplates: false,
     banRisk: false,
     minIntervalMs: 1000,
-    voiceNote: "opus-only",
+    voiceNote: "none",
     groups: "none",
     costPerMessage: false,
     // Editar e reagir existem só parcialmente na plataforma (reação só no
